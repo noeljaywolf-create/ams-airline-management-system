@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# Secrets and local state — NEVER commit
+# ---------------------------------------------------------------------------
+
+# Environment files. backend/.env in this tree contains a live DB_PASSWORD
+# and a 34-character JWT_SECRET. These patterns are the last line of defence
+# against committing one by accident.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Databases and their WAL sidecars
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+vendor/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output and caches
+dist/
+build/
+out/
+.cache/
+.vite/
+*.tsbuildinfo
+
+# Editor and OS noise
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Coverage
+coverage/
+.nyc_output/
+
+# ---------------------------------------------------------------------------
+# Local databases created by the SQLite development config
+# ---------------------------------------------------------------------------
+ams/ams.sqlite
+ams/ams.sqlite-journal
