@@ -12,8 +12,11 @@ import {
   airworthiness, audit, carbon, costing, dashboard, fuel, routing,
 } from './views.js';
 import { ecosystem, problem } from './views-eco.js';
+import { executive, home } from './views-exec.js';
 
 const VIEWS = {
+  home,
+  executive,
   problem,
   ecosystem,
   dashboard,
@@ -24,6 +27,38 @@ const VIEWS = {
   carbon,
   audit,
 };
+
+/**
+ * Two audiences, one system.
+ *
+ * The choice is a VIEW, not a separate application: every tab reads the same
+ * computed model, so the executive brief and the compliance board cannot
+ * disagree about a number. An executive who clicks "technical detail" on a
+ * decision lands on the view an engineer would use, and sees the same value.
+ */
+const AUDIENCE_VIEWS = {
+  executive: ['home', 'executive', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon'],
+  technical: ['home', 'executive', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit'],
+};
+
+let audience = 'executive';
+
+function applyAudience() {
+  const allowed = new Set(AUDIENCE_VIEWS[audience]);
+  for (const tab of document.querySelectorAll('#tabs .tab')) {
+    const visible = allowed.has(tab.dataset.view);
+    tab.style.display = visible ? '' : 'none';
+  }
+  document.getElementById('audience-switch').value = audience;
+}
+
+function setAudience(next) {
+  audience = AUDIENCE_VIEWS[next] ? next : 'executive';
+  applyAudience();
+  try { localStorage.setItem('ams.audience', audience); } catch { /* private mode */ }
+  // If the current view is hidden under the new audience, fall back to home.
+  if (!AUDIENCE_VIEWS[audience].includes(current)) select('home');
+}
 
 const viewHost = document.getElementById('view');
 const tabsHost = document.getElementById('tabs');
@@ -84,8 +119,18 @@ function boot() {
     tab.addEventListener('click', () => select(tab.dataset.view));
   }
 
+  try {
+    const saved = localStorage.getItem('ams.audience');
+    if (saved && AUDIENCE_VIEWS[saved]) audience = saved;
+  } catch { /* private mode */ }
+  applyAudience();
+
   const initial = location.hash.replace('#', '');
-  select(VIEWS[initial] ? initial : 'problem');
+  select(VIEWS[initial] ? initial : 'home');
 }
+
+document.getElementById('audience-switch').addEventListener('change', (e) => {
+  setAudience(e.target.value);
+});
 
 boot();

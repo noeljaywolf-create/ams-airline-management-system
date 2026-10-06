@@ -15,6 +15,8 @@
   </div>
 
   <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab" data-view="home"        role="tab">Home</button>
+    <button class="tab" data-view="executive"   role="tab">Executive Brief</button>
     <button class="tab" data-view="problem"     role="tab">The Problem</button>
     <button class="tab" data-view="ecosystem"   role="tab">Ecosystem</button>
     <button class="tab" data-view="dashboard"   role="tab">Dashboard</button>
@@ -27,6 +29,11 @@
   </nav>
 
   <div class="topbar-right">
+    <label class="aud-label" for="audience-switch">View as</label>
+    <select id="audience-switch" class="aud-switch" aria-label="Audience">
+      <option value="executive">Executive</option>
+      <option value="technical">Engineer</option>
+    </select>
     <span class="tenant" id="tenant-label">—</span>
     <span class="badge badge-warn" id="verdict-badge">computing…</span>
   </div>

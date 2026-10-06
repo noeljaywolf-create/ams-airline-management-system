@@ -12,12 +12,17 @@ import {
   fuelEfficiency, detectBurnVarianceAnomaly, reconcileFuel, optimalUplift,
 } from '../../shared/src/fuel.js';
 import { allocateEmissions, co2Tonnes } from '../../shared/src/carbon.js';
+import { airworthinessGate } from '../../shared/src/airworthiness.js';
 import { sum } from '../../shared/src/money.js';
 
 import {
-  AIRCRAFT, BUDGET_LINES, FLEET_FIXED, ROUTES, TARGET_LOAD_FACTOR_PPM,
+  AIRCRAFT, AIRCRAFT_STATE, BUDGET_LINES, DEFERRALS, DIRECTIVES,
+  FLEET_FIXED, ROUTES, TARGET_LOAD_FACTOR_PPM,
   EUA_PRICE_CENTS_PER_TONNE, OFFSET_UNIT_PRICE_CENTS, buildFlights,
 } from './data.js';
+
+/** Named for readability at the call site below. */
+const AD_SB_REGISTRY = DIRECTIVES;
 
 export function buildModel() {
   // 640 sectors per route x 15 routes = 9,600 sectors a year, which is what
@@ -206,6 +211,33 @@ export function buildModel() {
     return { ...l, availableCents: available, utilisationPpm: l.budgetedCents === 0 ? 0 : Math.floor((l.committedCents / l.budgetedCents) * 1_000_000) };
   });
 
+  // ---- airworthiness scope: which airframes are blocked, and why ----
+  // Fed from the same registry the airworthiness view renders, so a
+  // blocked-aircraft decision in the executive brief can never disagree
+  // with the compliance board an engineer is looking at.
+  const NOW_MS = Date.UTC(2026, 8, 18, 12, 0, 0);
+  const airworthiness = (() => {
+    const blocked = [];
+    const deferrals = DEFERRALS;
+    let overdueTotal = 0;
+
+    for (const ac of AIRCRAFT_STATE) {
+      const gate = airworthinessGate(AD_SB_REGISTRY, { ...ac, nowMs: NOW_MS }, deferrals);
+      overdueTotal += gate.overdueCount;
+      if (!gate.dispatchable) {
+        blocked.push({
+          type: ac.aircraftType,
+          serial: ac.serialNumber,
+          overdue: gate.overdue,
+          dueSoon: gate.dueSoon,
+          illegalDeferralAttempts: gate.illegalDeferralAttempts,
+          nextDue: gate.nextDue,
+        });
+      }
+    }
+    return { blocked, overdueTotal, nowMs: NOW_MS };
+  })();
+
   return {
     raw,
     flights: finalPnls,
@@ -225,5 +257,6 @@ export function buildModel() {
     emissions,
     budget,
     aircraft: AIRCRAFT,
+    airworthiness,
   };
 }
