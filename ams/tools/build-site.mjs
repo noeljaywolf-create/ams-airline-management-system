@@ -1,0 +1,101 @@
+/**
+ * Assemble a self-contained, deployable copy of the AMS UI demo.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * The demo runs from the repository root: index.html references
+ * `/frontend/css/app.css`, and every module reaches its domain code with
+ * `../../shared/src/money.js`. Under github.io/<repo>/ those absolute paths
+ * 404, and rewriting the relative imports inside eight JavaScript files
+ * would be error-prone for no benefit.
+ *
+ * The trick is to preserve the EXACT directory layout inside the built
+ * site. Then every relative import inside every module resolves unchanged
+ * and only two lines in index.html need rewriting.
+ *
+ *   site/
+ *     index.html            <- frontend/index.html, refs rewritten
+ *     .nojekyll
+ *     frontend/css, frontend/js
+ *     shared/src/...
+ *     backend/src/...
+ *
+ * The depth maths that makes this work:
+ *   frontend/js/views.js   '../../shared/src/...'   -> site/shared/src  ✓
+ *   backend/src/modules/finance/cost-authority.js
+ *                          '../../../../shared/...'  -> site/shared     ✓
+ *
+ * Nothing is excluded except tests, docs and node_modules, none of which
+ * the browser loads.
+ *
+ * Usage:  node tools/build-site.mjs [outDir]
+ */
+
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const OUT = resolve(process.argv[2] ?? join(ROOT, '.pages'));
+
+/** Copied verbatim so relative imports inside them keep resolving. */
+const TREES = [
+  'frontend/css',
+  'frontend/js',
+  'shared/src',
+  'backend/src',
+];
+
+async function main() {
+  if (existsSync(OUT)) await rm(OUT, { recursive: true, force: true });
+  await mkdir(OUT, { recursive: true });
+
+  for (const tree of TREES) {
+    const from = join(ROOT, tree);
+    if (!existsSync(from)) throw new Error(`missing source tree: ${tree}`);
+    // filter excludes editor config and anything else that is not browser source
+    await cp(from, join(OUT, tree), {
+      recursive: true,
+      filter: (src) => !/[/\\](\.vscode|node_modules|\.git)[/\\]?$/.test(src),
+    });
+  }
+
+  // Rewrite only the two asset references in index.html. The module graph
+  // itself is untouched, so a bug here cannot be a relative-path bug.
+  const html = await readFile(join(ROOT, 'frontend/index.html'), 'utf8');
+  const rewritten = html
+    .replace('href="/frontend/css/app.css"', 'href="./frontend/css/app.css"')
+    .replace('src="/frontend/js/app.js"', 'src="./frontend/js/app.js"');
+
+  const remainingAbsolute = rewritten.match(/(?:href|src)="\/(?!\/)/g);
+  if (remainingAbsolute) {
+    throw new Error(
+      `index.html still has root-absolute asset paths: ${remainingAbsolute.join(', ')}. ` +
+      'These would 404 under github.io/<repo>/ and must be rewritten.',
+    );
+  }
+
+  await writeFile(join(OUT, 'index.html'), rewritten, 'utf8');
+
+  // Pages must not run Jekyll, which ignores files beginning with _.
+  await writeFile(join(OUT, '.nojekyll'), '', 'utf8');
+
+  // A redirect for the repo's own landing, so the bare repository URL lands
+  // somewhere useful rather than on GitHub's file listing.
+  await writeFile(
+    join(OUT, 'README.txt'),
+    'AMS UI demo. The published site is at the root of this branch.\n' +
+    'Source repository: https://github.com/noeljaywolf-create/ams-airline-management-system\n',
+    'utf8',
+  );
+
+  console.log(`built ${OUT}`);
+  console.log('  index.html references rewritten to ./frontend/...');
+  console.log('  module graph copied verbatim — no relative imports touched');
+}
+
+main().catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});
