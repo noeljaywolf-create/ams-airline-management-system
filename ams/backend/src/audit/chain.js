@@ -33,7 +33,59 @@
  * @module audit/chain
  */
 
-import { createHash } from 'node:crypto';
+/**
+ * Hashing provider.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * This module is imported by the browser demo (frontend/js/ecosystem.js), so
+ * a bare `import { createHash } from 'node:crypto'` at the top of the file
+ * was fatal: a browser cannot resolve a Node builtin, and the failure takes
+ * the ENTIRE module graph down with it. The symptom was the demo rendering
+ * "Loading domain modules..." forever with no error, because a graph-level
+ * resolution failure happens before any application code runs — so no
+ * try/catch in app.js can catch it.
+ *
+ * The fix is to resolve Node's crypto lazily and degrade to a browser
+ * implementation. computeHash() below therefore returns a Promise in a
+ * browser and a string in Node, which is why every consumer is async.
+ * That asymmetry is deliberate and documented rather than hidden: a
+ * synchronous API that silently changed shape would be worse.
+ *
+ * Node (backend):   createHash('sha256').update(a).update(b).digest('hex')
+ * Browser (demo):   crypto.subtle.digest('SHA-256', ...) — the Web Crypto
+ *                   equivalent, identical output.
+ */
+
+/**
+ * Hash a string to lowercase hex SHA-256.
+ *
+ * Always returns a Promise, in both runtimes. Node's createHash is
+ * synchronous, so it is wrapped in an async function rather than returned
+ * bare — that keeps ONE signature for both runtimes, so a caller cannot
+ * accidentally `await` in one place and not another. The two implementations
+ * produce identical hex output.
+ *
+ * @param {string} data
+ * @returns {Promise<string>}
+ */
+export const sha256Hex = await (async () => {
+  try {
+    const { createHash } = await import('node:crypto');
+    /** @type {(data: string) => Promise<string>} */
+    const sync = (data) => Promise.resolve(
+      createHash('sha256').update(data, 'utf8').digest('hex'),
+    );
+    return sync;
+  } catch {
+    const enc = new TextEncoder();
+    /** @type {(data: string) => Promise<string>} */
+    return async (data) => {
+      const buf = await crypto.subtle.digest('SHA-256', enc.encode(data));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    };
+  }
+})();
 
 /** Genesis sentinel. Chaining starts here. */
 export const GENESIS_HASH = '0'.repeat(64);
@@ -77,7 +129,19 @@ export function canonicalise(value) {
  * @param {string} prevHash
  * @returns {string} hex SHA-256
  */
-export function computeHash(entry, prevHash) {
+/**
+ * Compute the chain hash for an entry.
+ *
+ * ASYNC by necessity — see the sha256Hex note above. Web Crypto's digest is
+ * asynchronous, so this returns a Promise in a browser. Awaiting it in Node
+ * costs one microtask and is correct there too, so one code path serves both
+ * runtimes instead of two implementations that can drift apart.
+ *
+ * @param {AuditEntry} entry
+ * @param {string} prevHash
+ * @returns {Promise<string>} hex SHA-256
+ */
+export async function computeHash(entry, prevHash) {
   const canonical = canonicalise({
     id: entry.id,
     tenantId: entry.tenantId,
@@ -90,7 +154,7 @@ export function computeHash(entry, prevHash) {
     ip: entry.ip,
     occurredAt: entry.occurredAt,
   });
-  return createHash('sha256').update(prevHash, 'utf8').update(canonical, 'utf8').digest('hex');
+  return sha256Hex(prevHash + canonical);
 }
 
 /**
@@ -98,6 +162,7 @@ export function computeHash(entry, prevHash) {
  * Convenience wrapper used by the repository on insert.
  * @param {AuditEntry} entry
  * @param {string} prevHash
+ * @returns {Promise<string>}
  */
 export function chainEntry(entry, prevHash) {
   return computeHash(entry, prevHash || GENESIS_HASH);
@@ -107,12 +172,12 @@ export function chainEntry(entry, prevHash) {
  * Verify a whole chain.
  *
  * @param {AuditEntry[]} entries in ascending id order
- * @returns {{ valid: boolean, entriesChecked: number, brokenAt: number | null, reason: string | null }}
+ * @returns {Promise<{ valid: boolean, entriesChecked: number, brokenAt: number | null, reason: string | null }>}
  */
-export function verifyChain(entries) {
+export async function verifyChain(entries) {
   let prev = GENESIS_HASH;
   for (const entry of entries) {
-    const expected = computeHash(entry, prev);
+    const expected = await computeHash(entry, prev);
     if (expected !== entry.entryHash) {
       return {
         valid: false,
@@ -133,11 +198,11 @@ export function verifyChain(entries) {
  * @param {AuditEntry[]} allEntries across all tenants
  * @param {string} tenantId
  */
-export function verifyTenantChain(allEntries, tenantId) {
+export async function verifyTenantChain(allEntries, tenantId) {
   const scoped = allEntries
     .filter((e) => e.tenantId === tenantId)
     .sort((a, b) => a.id - b.id);
-  return { tenantId, ...verifyChain(scoped) };
+  return { tenantId, ...(await verifyChain(scoped)) };
 }
 
 /**
