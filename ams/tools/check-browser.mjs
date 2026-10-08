@@ -235,9 +235,18 @@ try {
         const host = nodes.get('view');
         const kids = host?.children?.length ?? 0;
         const painted = textOf(host);
+        const unevaluated = painted.match(/\$\{[^{}]*\}/g);
         if (/View failed to render/i.test(painted)) {
           console.log(`  FAIL ${name.padEnd(16)} painted a render-error card`);
           problems.push(`view "${name}" threw during render and was replaced by an error card`);
+        } else if (unevaluated) {
+          // A single-quoted string where a template literal was meant
+          // ("${money(x)}") renders the expression verbatim instead of
+          // throwing, so it produces a plausible-looking KPI with nonsense
+          // in it. The dashboard shipped CASK and RASP that way.
+          const sample = unevaluated.slice(0, 3).join(' ');
+          console.log(`  FAIL ${name.padEnd(16)} leaked un-evaluated template: ${sample}`);
+          problems.push(`view "${name}" displays un-evaluated interpolation: ${sample}`);
         } else if (kids === 0 || painted.trim() === '') {
           console.log(`  FAIL ${name.padEnd(16)} rendered no visible content`);
           problems.push(`view "${name}" rendered no visible content`);

@@ -43,9 +43,9 @@ export function dashboard(m) {
   frag.append(kpis(
     kpi('Operating result', moneyShort(t.contributionCents),
       `${money(t.contributionCents)} exactly`, good ? 'good' : 'bad'),
-    kpi('CASK', "${microcents(t.caskMicrocents)}",
+    kpi('CASK', `${microcents(t.caskMicrocents)}`,
       `per available seat-km · ${int(t.asks)} ASK`),
-    kpi('RASK', "${microcents(t.raskMicrocents)}",
+    kpi('RASK', `${microcents(t.raskMicrocents)}`,
       `per available seat-km · margin ${pct(v.marginPpm)}`,
       v.marginPpm > 0 ? 'good' : 'bad'),
     kpi('Load factor', pct(t.loadFactorPpm),

@@ -39,9 +39,10 @@ html, body {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 0 22px;
-  height: 58px;
+  gap: 8px 24px;
+  padding: 6px 22px;
+  min-height: 58px;
+  flex-wrap: wrap;
   background: var(--accent);
   color: #fff;
   position: sticky;
@@ -64,7 +65,22 @@ html, body {
   letter-spacing: .2px;
 }
 
-.tabs { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
+/* `min-width: max-content` stops the tab strip from collapsing into an
+   internal scrollbar that hides tabs behind a clipped "Da…" label — the
+   single most visible flaw in a demo shown on a laptop. With the topbar
+   allowed to wrap, the strip instead moves to its own full-width row when
+   the row runs out of space. `overflow-x` remains only as a last resort on
+   very narrow viewports, with the scrollbar itself hidden. */
+.tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: max-content;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar { height: 0; }
 
 .tab {
   background: transparent;
