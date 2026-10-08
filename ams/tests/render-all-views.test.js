@@ -38,7 +38,7 @@ beforeAll(() => {
 }, 120_000);
 
 describe('the built site renders every view', () => {
-  it('renders all 11 views with no render-error card and exits clean', () => {
+  it('renders every view with no render-error card and exits clean', () => {
     let stdout = '';
     let failed = false;
     try {
@@ -57,10 +57,20 @@ describe('the built site renders every view', () => {
     expect(stdout).toMatch(/BROWSER GRAPH OK/);
     expect(failed, `check-browser reported a problem:\n${stdout}`).toBe(false);
 
-    const rendered = [...stdout.matchAll(/^\s+ok\s+(\w+)\s+/gm)].map((m) => m[1]);
+    // Rendering is necessary but not sufficient. The scripted journey also
+    // clicks every control; without this assertion a stub that silently
+    // stopped firing listeners would pass while the demo did nothing.
+    expect(stdout).toMatch(/EVERY CONTROL FIRED AND THE SYSTEM RESPONDED CORRECTLY/);
+    expect(stdout).toMatch(/self-approval was NOT blocked|blocked, and a refusal was recorded/);
+
+    // Pinned by name so that ADDING a tab without a tab button fails, and
+    // removing one fails too. Keep in step with VIEWS in app.js and the
+    // buttons in index.html. The `root node(s)` marker distinguishes these
+    // render lines from the scripted-journey lines, which also print "ok".
+    const rendered = [...stdout.matchAll(/^\s+ok\s+(\w+)\s+.*root node\(s\)/gm)].map((m) => m[1]);
     expect(rendered).toEqual([
-      'home', 'executive', 'problem', 'ecosystem', 'dashboard',
-      'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit',
+      'home', 'executive', 'portal', 'whatif', 'problem', 'ecosystem',
+      'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit',
     ]);
   }, 120_000);
 });

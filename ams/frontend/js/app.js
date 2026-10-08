@@ -13,10 +13,28 @@ import {
 } from './views.js';
 import { ecosystem, problem } from './views-eco.js';
 import { executive, home } from './views-exec.js';
+import { portalView, scenarioView } from './views-portal.js';
+import { createStore } from './portal/store.js';
+
+/**
+ * The store is created once and handed to the two interactive views. It
+ * survives view switches, so a request raised in the cost authority queue is
+ * still in the queue when you come back — which is the difference between an
+ * application and a set of pages.
+ */
+const store = createStore();
+
+/** Views that need the store; everything else keeps the plain `(model)` signature. */
+const STORE_VIEWS = {
+  portal: () => portalView(store),
+  whatif: () => scenarioView(store),
+};
 
 const VIEWS = {
   home,
   executive,
+  portal: STORE_VIEWS.portal,
+  whatif: STORE_VIEWS.whatif,
   problem,
   ecosystem,
   dashboard,
@@ -37,8 +55,8 @@ const VIEWS = {
  * decision lands on the view an engineer would use, and sees the same value.
  */
 const AUDIENCE_VIEWS = {
-  executive: ['home', 'executive', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon'],
-  technical: ['home', 'executive', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit'],
+  executive: ['home', 'executive', 'portal', 'whatif', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon'],
+  technical: ['home', 'executive', 'portal', 'whatif', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit'],
 };
 
 let audience = 'executive';
@@ -114,6 +132,16 @@ function boot() {
 
   document.getElementById('test-count').textContent =
     `${model.flights.length.toLocaleString()} sectors · ${model.raw.length} flights`;
+
+  // The store holds the model so the what-if view can compare an adjusted
+  // figure against the baseline it started from.
+  store.state.model = model;
+
+  // A store change re-renders the current view. Only the interactive views
+  // depend on the store, so a read-only tab is never repainted needlessly.
+  store.subscribe(() => {
+    if (Object.hasOwn(STORE_VIEWS, current)) select(current);
+  });
 
   for (const tab of tabsHost.querySelectorAll('.tab')) {
     tab.addEventListener('click', () => select(tab.dataset.view));

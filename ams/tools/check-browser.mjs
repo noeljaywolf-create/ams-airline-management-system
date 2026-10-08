@@ -122,17 +122,92 @@ class StubElement extends StubNode {
   removeChild(c) { this.children = this.children.filter((x) => x !== c); return c; }
   replaceChildren(...c) { this.children = c.flat(); }
   remove() {}
-  addEventListener() {}
-  removeEventListener() {}
+  /* Listeners are STORED and dispatched by `click()`. The previous stub
+   * discarded them, which meant a button could be wired to nothing and the
+   * check still passed — the exact failure mode this script exists to
+   * catch. Storing them is what makes the scripted journey below possible.
+   */
+  addEventListener(type, fn) {
+    (this._listeners ??= {})[type] = [...(this._listeners[type] ?? []), fn];
+  }
+  removeEventListener(type, fn) {
+    this._listeners[type] = (this._listeners?.[type] ?? []).filter((f) => f !== fn);
+  }
+  /** Fire a listener. The event carries the target so delegated handlers work. */
+  fire(type, extra = {}) {
+    const evt = { type, target: this, preventDefault() {}, stopPropagation() {}, ...extra };
+    for (const fn of this._listeners?.[type] ?? []) fn.call(this, evt);
+    return evt;
+  }
+  click() { return this.fire('click'); }
+  /**
+   * Deep query by tag name or a `.class` selector.
+   *
+   * Descends into EVERY child, including document fragments (nodeType 11).
+   * `el()` returns a fragment whose children are the actual elements, so a
+   * walker that only recurses into elements finds nothing at all — which is
+   * exactly what happened the first time.
+   */
+  walk(sel) {
+    const isClass = sel.startsWith('.');
+    const want = (isClass ? sel.slice(1) : sel).toUpperCase();
+    const out = [];
+    const visit = (n) => {
+      for (const c of n.children ?? []) {
+        if (c.nodeType === 1) {
+          const cls = String(c.className ?? c._attrs?.class ?? '');
+          if (isClass ? cls.split(/\s+/).includes(want) : String(c.tagName ?? '').toUpperCase() === want) out.push(c);
+        }
+        visit(c);
+      }
+    };
+    visit(this);
+    return out;
+  }
+  querySelectorAll(sel) { return this.walk(sel); }
+  querySelector(sel) { return this.walk(sel)[0] ?? null; }
+  get text() {
+    // Text nodes carry textContent; elements expose the recursive getter.
+    let s = this.textContent ?? '';
+    for (const c of this.children ?? []) s += ' ' + (c.text ?? c.textContent ?? '');
+    return s;
+  }
   setAttribute(k, v) { this._attrs[k] = v; }
   getAttribute(k) { return this._attrs[k] ?? null; }
   removeAttribute(k) { delete this._attrs[k]; }
-  querySelector() { return new StubElement(); }
-  querySelectorAll() { return []; }
+  /**
+   * A browser's `<select>` reads as its first option until one is chosen, and
+   * `<input>` reads its `value` attribute. The stub originally returned
+   * undefined for both, so a form read `lineId: undefined`, the raise failed
+   * with NO_SUCH_LINE, and the journey looked like it had raised a request.
+   */
+  get value() {
+    if (this._value !== undefined) return this._value;
+    if (this._attrs?.value !== undefined) return this._attrs.value;
+    if (this.tagName === 'SELECT') {
+      const first = this.walk('option')[0];
+      return first ? (first._attrs?.value ?? first.textContent ?? '') : '';
+    }
+    return '';
+  }
+  set value(v) { this._value = v; }
   getBoundingClientRect() { return { width: 0, height: 0 }; }
-  closest() { return null; }
   focus() {}
-  click() {}
+  /**
+   * `closest()` supports the delegated `[data-goto]` navigation in app.js.
+   * Returning null here — as this stub originally did — silently disabled
+   * every delegated handler, which is the same class of invisible failure as
+   * an unwired button.
+   */
+  closest(sel) {
+    const want = sel.replace(/^\[|\]$/g, '');
+    let n = this;
+    while (n) {
+      if (n.nodeType === 1 && n._attrs && want in n._attrs) return n;
+      n = n.parent ?? null;
+    }
+    return null;
+  }
 }
 
 const stubElement = (id = '') => new StubElement(id);
@@ -144,12 +219,20 @@ globalThis.document = {
     if (!nodes.has(id)) nodes.set(id, new StubElement(id));
     return nodes.get(id);
   },
-  createElement(tag) { return new StubElement(tag); },
-  createElementNS() { return new StubElement('svg'); },
+  createElement(tag) {
+    const e = new StubElement();
+    e.tagName = String(tag).toUpperCase();
+    return e;
+  },
+  createElementNS(_ns, tag) {
+    const e = new StubElement();
+    e.tagName = String(tag).toUpperCase();
+    return e;
+  },
   createTextNode(t) { return Object.assign(new StubNode(), { nodeType: 3, textContent: String(t) }); },
   createDocumentFragment() { return new StubFragment(); },
-  querySelector() { return new StubElement(); },
-  querySelectorAll() { return []; },
+  querySelector(sel) { return this.getElementById('view').querySelector(sel); },
+  querySelectorAll(sel) { return this.getElementById('view').querySelectorAll(sel); },
 };
 // `location` is a bare global in browsers (window.location), not a property
 // reached through the window object. app.js reads it directly, so it must be
@@ -265,6 +348,134 @@ try {
     fatal += problems.length;
   } else {
     console.log('\nBOOT COMPLETED and every view rendered');
+  }
+
+  /* ---- scripted journey: click the controls ---------------------------
+   *
+   * Rendering is not working. A button can be wired to nothing, a listener
+   * can never fire, and the page still looks perfect. This drives the real
+   * handlers in sequence and asserts the observable state changed, which is
+   * the only honest definition of "the demo works".
+   *
+   * The journey is the demo's sales pitch, run headlessly:
+   *   raise a request -> try to approve your own -> get blocked by SoD
+   *   -> switch role -> approve -> budget moves -> chain verifies.
+   */
+  console.log('\nclicking the controls:');
+  const host = nodes.get('view');
+  const byText = (sel, text) => host.querySelectorAll(sel).find((n) => (n.text ?? '').includes(text));
+
+  /**
+   * The click handlers are ASYNC (they hash an audit entry before updating),
+   * so asserting immediately after `.click()` would read the DOM before the
+   * work happened. Every step therefore awaits its own handler, and clicks
+   * are followed by `settle()`.
+   */
+  const settle = async () => {
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+  };
+
+  const step = async (label, fn) => {
+    try {
+      const detail = await fn();
+      console.log(`  ok   ${label}${detail ? ` — ${detail}` : ''}`);
+    } catch (err) {
+      console.log(`  FAIL ${label}: ${err.message}`);
+      problems.push(`interaction "${label}": ${err.message}`);
+    }
+  };
+  const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+
+  let chainValid = null;
+
+  await step('switch to the portal and raise a request', async () => {
+    select('portal');
+    const btn = byText('button', 'Raise request');
+    assert(btn, 'no "Raise request" button found');
+    assert(btn._listeners?.click?.length, '"Raise request" has no click handler wired');
+    btn.click();
+    await settle();
+    return 'handler fired';
+  });
+
+  await step('a pending request appears in the queue', async () => {
+    select('portal');
+    assert(!host.text.includes('Nothing awaiting approval'), 'the request was never actually raised');
+    assert(host.text.includes('awaiting approval'), 'queue did not show a pending request');
+    assert(byText('button', 'Approve'), 'no Approve/Reject controls on the pending row');
+    return 'visible';
+  });
+
+  await step('the author CANNOT approve their own request', async () => {
+    select('portal');
+    const approve = byText('button', 'Approve');
+    assert(approve, 'no Approve button in the queue');
+    approve.click();
+    await settle();
+    assert(host.text.includes('SOD_SELF_APPROVAL'), 'self-approval was NOT blocked');
+    assert(host.text.includes('awaiting approval'), 'the blocked request was still consumed');
+    return 'blocked, and a refusal was recorded';
+  });
+
+  await step('the budget has not moved after the blocked attempt', async () => {
+    select('portal');
+    assert(!host.text.includes('Cost authorised'), 'a cost was authorised by a blocked actor');
+    return 'unchanged';
+  });
+
+  await step('hand off to the CEO, who did not raise it', async () => {
+    select('portal');
+    const sel = host.querySelectorAll('select')[0];
+    assert(sel, 'no persona select rendered');
+    sel.value = 'p-ceo';
+    sel.fire('change');
+    select('portal');
+    assert(host.text.includes('R. Moyo'), 'the persona switcher did not change the signed-in user');
+    return 'now acting as the CEO, who raised nothing';
+  });
+
+  await step('the CEO CAN approve, and the budget moves', async () => {
+    select('portal');
+    const approve = byText('button', 'Approve');
+    assert(approve, 'no Approve button for the CEO');
+    approve.click();
+    await settle();
+    assert(host.text.includes('Cost authorised'), 'the CEO approval did not go through');
+    return 'authorised and committed';
+  });
+
+  await step('the audit chain verifies after real actions', async () => {
+    select('portal');
+    const verify = byText('button', 'Verify the chain');
+    assert(verify, 'no "Verify the chain" button');
+    verify.click();
+    await settle();
+    assert(host.text.includes('Chain valid'), 'the chain did not verify after the journey');
+    chainValid = true;
+    return 'hashes recomputed and matched';
+  });
+
+  await step('a what-if input recomputes the model', async () => {
+    select('whatif');
+    const slider = host.querySelectorAll('input')[0];
+    assert(slider, 'no what-if slider rendered');
+    const before = slider.value;
+    slider.value = '180';
+    slider.fire('input');
+    select('whatif');
+    assert(host.text.includes('Effect on this year'), 'moving a slider produced no effect panel');
+    assert(slider.value !== before, 'the slider did not change');
+    return 'fuel index moved, ratios recomputed';
+  });
+
+  if (problems.length) {
+    console.log('\nINTERACTION PROBLEMS:');
+    for (const p of problems) console.log(`  ${p}`);
+    fatal += problems.filter((p) => p.startsWith('interaction')).length;
+  } else if (chainValid) {
+    console.log('\nEVERY CONTROL FIRED AND THE SYSTEM RESPONDED CORRECTLY');
   }
 } catch (err) {
   console.log(`\nENTRY POINT THREW: ${err.constructor.name}`);
