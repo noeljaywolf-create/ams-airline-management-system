@@ -23,7 +23,7 @@
  */
 
 import {
-  PROBLEMS, capabilityAudit, ecosystemTotals,
+  PROBLEMS, capabilityAudit, ecosystemTotals, DOMAINS, ROADMAP, DELIVERY_STATES,
 } from './ecosystem.js';
 
 import {
@@ -55,7 +55,10 @@ export function deriveDecisions(m) {
     out.push({
       severity: 'HIGH',
       owner: 'Commercial',
-      title: `${r.def.from}–${r.def.to} is losing money`,
+      // Stable machine key. The title is written for humans and its
+      // punctuation will change; assertions use this instead.
+      routeId: r.routeId,
+      title: `${r.def.from} to ${r.def.to} is losing money`,
       fact: `Revenue per available seat-kilometre is ${(r.agg.raskMicrocents / 1e8).toFixed(4)} `
           + `against a cost of ${(r.agg.caskMicrocents / 1e8).toFixed(4)}. `
           + `Across ${int(r.agg.flights)} sectors the shortfall is ${money(Math.abs(r.contributionCents))}.`,
@@ -200,7 +203,7 @@ export function home(m) {
 
   frag.append(el('div', { class: 'answer-grid' },
     ...answers.map(([q, a, tab]) => el('div', {
-      class: 'answer-card', onclick: `location.hash='${tab}'`,
+      class: 'answer-card', 'data-goto': tab, tabindex: '0', role: 'link',
     },
       el('div', { class: 'answer-q' }, q),
       el('div', { class: 'answer-a' }, a),
@@ -208,11 +211,64 @@ export function home(m) {
 
   // Problems addressed
   frag.append(card('Operational failures this addresses',
-    'each is a real, recurring failure mode — not a competitor weakness',
+    'each is a real, recurring failure mode, not a competitor weakness',
     el('div', {},
       ...PROBLEMS.map((p) => el('div', { class: 'problem-row' },
         el('div', { class: 'problem-h' }, p.headline),
         el('div', { class: 'problem-d' }, p.consequence))))));
+
+  /* ---- the ecosystem, not finance alone ---- */
+  frag.append(el('p', { class: 'eco-lede' },
+    'Finance is where the cash is visible, but it is not the whole system. These five domains ',
+    'share one cost model, which is the point: ',
+    el('strong', {}, 'the cost of a component is the same number '),
+    'whether you are doing stores accounting, maintenance planning, budgeting or compliance ',
+    'reporting. In a typical airline those live in four systems with four cost definitions, and ',
+    'reconciling them is a month-end exercise that never quite closes.'));
+
+  const domainCards = DOMAINS.map((d) => {
+    const shares = el('div', { class: 'domain-shares' });
+    for (const s of d.shares) shares.append(el('span', { class: 'share' }, s));
+    const mods = el('div', { class: 'domain-modules' });
+    for (const mod of d.modules) mods.append(el('code', {}, mod));
+    return el('div', { class: 'domain' },
+      el('div', { class: 'domain-head' },
+        el('span', { class: 'domain-name' }, d.name),
+        pill(d.status, d.status === 'DELIVERED' ? 'ok' : 'warn'),
+        el('span', { class: 'domain-state' }, DELIVERY_STATES[d.status])),
+      el('div', { class: 'domain-problem' }, d.problem),
+      el('div', { class: 'domain-exposure' },
+        el('strong', {}, 'What it costs: '), d.exposure),
+      shares,
+      mods);
+  });
+
+  frag.append(card('The ecosystem: five domains, one source of truth',
+    'every domain is a cash problem wearing a technical costume',
+    el('div', {}, ...domainCards)));
+
+  /* ---- planning horizon ---- */
+  const phaseRows = [];
+  for (const r of ROADMAP) {
+    const depts = el('div', { class: 'phase-depts' });
+    for (const d of r.departments) depts.append(el('span', { class: 'dept' }, d));
+    phaseRows.push(el('div', { class: 'phase' },
+      el('div', { class: 'phase-head' },
+        pill('PHASE ' + r.phase, r.phase === 1 ? 'ok' : 'neutral'),
+        el('span', { class: 'phase-state' }, r.state)),
+      depts));
+  }
+
+  const phaseNote = el('div', { class: 'explain', style: 'margin-top:12px' },
+    'Aviation regulations mandate named accountable managers, so the department structure is a ',
+    el('strong', {}, 'regulatory artefact'),
+    ', not a user-interface preference. Departments are registered with their roles and an empty ',
+    'portal rather than faked with placeholder logic: a department that appears to work but does ',
+    'not is worse than one that is visibly empty.');
+
+  frag.append(card('Planning horizon',
+    'scope registered, not a promise: deferred logic is stated as deferred',
+    el('div', {}, ...phaseRows, phaseNote)));
 
   return frag;
 }
@@ -268,7 +324,7 @@ export function executive(m) {
             el('span', { class: 'decision-owner' }, d.owner),
             el('button', {
               class: 'btn-ghost',
-              onclick: `location.hash='${d.engineTab}'`,
+              'data-goto': d.engineTab,
             }, 'technical detail')),
           el('div', { class: 'decision-title' }, d.title),
           el('div', { class: 'decision-fact' }, d.fact),

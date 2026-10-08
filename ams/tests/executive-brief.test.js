@@ -29,25 +29,25 @@ const model = buildModel();
 describe('decisions are derived, never authored', () => {
   it('every loss-making route produces exactly one decision', () => {
     const losers = model.routeRollup.filter((r) => r.contributionCents < 0);
-    const decisions = deriveDecisions(model);
-    const routeDecisions = decisions.filter((d) => /is losing money/.test(d.title));
+    const routeDecisions = deriveDecisions(model).filter((d) => d.routeId);
     expect(routeDecisions).toHaveLength(losers.length);
+    expect(routeDecisions.map((d) => d.routeId).sort()).toEqual(losers.map((r) => r.routeId).sort());
   });
 
   it('no decision exists for a route the model says is profitable', () => {
     const winners = model.routeRollup.filter((r) => r.contributionCents >= 0);
     const decisions = deriveDecisions(model);
     for (const w of winners) {
-      const claimed = decisions.find((d) => d.title.includes(`${w.def.from}–${w.def.to}`));
-      expect(claimed, `${w.def.from}-${w.def.to} is profitable but a decision was raised`).toBeUndefined();
+      const claimed = decisions.find((d) => d.routeId === w.routeId);
+      expect(claimed, `${w.routeId} is profitable but a decision was raised`).toBeUndefined();
     }
   });
 
   it('the amount at stake equals the model shortfall exactly', () => {
     const decisions = deriveDecisions(model);
-    for (const d of decisions.filter((x) => /is losing money/.test(x.title))) {
-      const route = model.routeRollup.find((r) => d.title.startsWith(`${r.def.from}–${r.def.to}`));
-      expect(route).toBeDefined();
+    for (const d of decisions.filter((x) => x.routeId)) {
+      const route = model.routeRollup.find((r) => r.routeId === d.routeId);
+      expect(route, `no route with routeId "${d.routeId}"`).toBeDefined();
       expect(d.size).toBe(`$${(Math.abs(route.contributionCents) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     }
   });

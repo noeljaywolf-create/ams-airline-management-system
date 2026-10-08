@@ -172,8 +172,17 @@ if (!globalThis.crypto) {
 }
 
 try {
-  await import(pathToFileURL(resolve(ROOT, ENTRY)).href);
-
+  // app.js holds its router in module scope. Exporting it lets this script
+  // render EVERY view, not just the default — the gap that let a broken
+  // executive brief pass verification and deploy.
+  const appNs = await import(pathToFileURL(resolve(ROOT, ENTRY)).href);
+  const select = appNs.__select;
+  if (typeof select !== 'function') {
+    console.log('\ncannot render every view: app.js does not export __select');
+    console.log('only the default view was checked, which is the gap that let a');
+    console.log('broken view deploy unnoticed. Export __select from app.js.');
+    process.exit(1);
+  }
   const view = nodes.get('view');
   const badge = nodes.get('verdict-badge');
   const tenant = nodes.get('tenant-label');
@@ -194,11 +203,59 @@ try {
     problems.push('tenant label was never set');
   }
 
+  /* ---- render EVERY view, not just the default ----
+   *
+   * This is the check that was missing. The executive brief shipped broken
+   * while the previous version of this script reported BROWSER GRAPH OK,
+   * because it only rendered whichever view the hash selected. A view that
+   * throws at runtime is invisible until someone opens that tab.
+   *
+   * Two traps are handled explicitly:
+   *   1. app.js `select()` CATCHES render errors and paints an error card
+   *      instead of rethrowing. That is right for a user, wrong for
+   *      verification, so success is judged by what was painted.
+   *   2. The DOM stub never serialises innerHTML, so checking innerHTML for
+   *      the failure text would always pass. Walk the tree instead.
+   */
+  const textOf = (n) => {
+    if (!n) return '';
+    let out = n.textContent ?? '';
+    for (const c of n.children ?? []) out += ' ' + textOf(c);
+    return out;
+  };
+
+  const TABS = appNs.__viewNames ?? [];
+  if (!Array.isArray(TABS) || TABS.length === 0) {
+    problems.push('app.js exported no view names — every-view check cannot run');
+  } else {
+    console.log(`\nrendering ${TABS.length} views:`);
+    for (const name of TABS) {
+      try {
+        select(name);
+        const host = nodes.get('view');
+        const kids = host?.children?.length ?? 0;
+        const painted = textOf(host);
+        if (/View failed to render/i.test(painted)) {
+          console.log(`  FAIL ${name.padEnd(16)} painted a render-error card`);
+          problems.push(`view "${name}" threw during render and was replaced by an error card`);
+        } else if (kids === 0 || painted.trim() === '') {
+          console.log(`  FAIL ${name.padEnd(16)} rendered no visible content`);
+          problems.push(`view "${name}" rendered no visible content`);
+        } else {
+          console.log(`  ok   ${name.padEnd(16)} ${kids} root node(s), ${painted.trim().length} chars`);
+        }
+      } catch (err) {
+        console.log(`  THREW ${name}: ${err.message}`);
+        problems.push(`view "${name}" threw: ${err.message}`);
+      }
+    }
+  }
+
   if (problems.length) {
     for (const p of problems) console.log(`  PROBLEM          ${p}`);
     fatal += problems.length;
   } else {
-    console.log('\nBOOT COMPLETED: the demo rendered, not the loading placeholder');
+    console.log('\nBOOT COMPLETED and every view rendered');
   }
 } catch (err) {
   console.log(`\nENTRY POINT THREW: ${err.constructor.name}`);

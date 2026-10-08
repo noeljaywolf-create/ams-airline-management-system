@@ -133,4 +133,27 @@ document.getElementById('audience-switch').addEventListener('change', (e) => {
   setAudience(e.target.value);
 });
 
+function onGotoActivate(e) {
+  const target = e.target instanceof Element
+    ? e.target.closest('[data-goto]')
+    : null;
+  if (!target) return;
+  const to = target.getAttribute('data-goto');
+  if (!to) return;
+  if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  select(to);
+}
+
+viewHost.addEventListener('click', onGotoActivate);
+viewHost.addEventListener('keydown', onGotoActivate);
+
+/* Exposed for tools/check-browser.mjs. `select` catches render errors and
+ * paints an error card instead of throwing, which is right for a user and
+ * wrong for verification: a broken view looks like a working one. Exporting
+ * the router and the view list lets the checker drive every tab and inspect
+ * what was actually painted. Read-only; nothing here changes behaviour. */
+export const __select = select;
+export const __viewNames = Object.keys(VIEWS);
+
 boot();

@@ -60,13 +60,32 @@ export const hours = (n) => `${n.toFixed(2)} h`;
 /* ------------------------------------------------------------------- DOM */
 
 export function el(tag, attrs = {}, ...children) {
+  if (attrs === null || typeof attrs !== 'object' || Array.isArray(attrs)) {
+    throw new TypeError(
+      `el('${tag}') expects an attributes OBJECT as its second argument, received ${
+        attrs === null ? 'null' : Array.isArray(attrs) ? 'an Array' : typeof attrs
+      }. This usually means a helper was called with arguments in the wrong order.`,
+    );
+  }
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (v === null || v === undefined || v === false) continue;
     if (k === 'class') node.className = v;
     else if (k === 'html') node.innerHTML = v;
-    else if (k.startsWith('on')) node.addEventListener(k.slice(2).toLowerCase(), v);
-    else node.setAttribute(k, String(v));
+    else if (k.startsWith('on')) {
+      // Handlers must be functions. A string here is a real bug: assigning
+      // one to addEventListener throws an opaque TypeError from inside the
+      // DOM, far from the line that caused it. Navigation uses data-goto and
+      // a delegated listener in app.js instead of inline handlers, which
+      // also keeps the app compatible with a strict Content-Security-Policy.
+      if (typeof v !== 'function') {
+        throw new TypeError(
+          `el('${tag}'): attribute '${k}' must be a function, received ${typeof v}. `
+          + 'Use data-goto for navigation rather than an inline handler string.',
+        );
+      }
+      node.addEventListener(k.slice(2).toLowerCase(), v);
+    } else node.setAttribute(k, String(v));
   }
   for (const c of children.flat()) {
     if (c === null || c === undefined || c === false) continue;

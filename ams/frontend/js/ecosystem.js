@@ -469,6 +469,134 @@ export const CAPABILITIES = [
 ];
 
 /* ------------------------------------------------------------------ *
+ * THE ECOSYSTEM — five domains, one model
+ * ------------------------------------------------------------------ */
+
+/**
+ * Why this is an ecosystem and not a finance system.
+ *
+ * The argument is a single sentence: the cost of a component is the SAME
+ * NUMBER whether you are doing stores accounting, maintenance planning,
+ * budgeting or compliance reporting. In a typical airline those live in
+ * four systems with four cost definitions, and reconciling them is a
+ * month-end exercise that never quite closes.
+ *
+ * So the domains are listed in dependency order, and each carries the
+ * financial exposure it removes — because every one of them is ultimately
+ * a cash problem wearing a technical costume.
+ *
+ * @typedef {Object} Domain
+ * @property {string} id
+ * @property {string} name
+ * @property {string} problem    The operational failure, in business terms
+ * @property {string} exposure   What it costs when it goes wrong
+ * @property {string[]} shares   What it shares with the other domains
+ * @property {string} status     DELIVERED | DESIGNED | PLANNED
+ * @property {string[]} modules  Implemented in these files
+ */
+
+/** @type {Domain[]} */
+export const DOMAINS = [
+  {
+    id: 'finance',
+    name: 'Finance & Treasury',
+    problem:
+      'Nobody can say what a flight cost. Invoices arrive months late, blended across '
+      + 'hundreds of sectors, so cost cannot be attributed to the flight that caused it '
+      + 'and route profitability is a belief rather than a figure.',
+    exposure:
+      'Routes are priced on instinct. Charter bids and lease decisions are made without '
+      + 'a defensible cost. A loss-making sector runs for years because no one can prove it.',
+    shares: ['Every domain reports into the same cost model'],
+    status: 'DELIVERED',
+    modules: ['shared/src/money.js', 'shared/src/costing.js', 'shared/src/metrics.js',
+      'backend/src/modules/finance/cost-authority.js', 'backend/src/audit/chain.js'],
+  },
+  {
+    id: 'authority',
+    name: 'Cost Authority & Procurement',
+    problem:
+      'A hundred individually reasonable approvals, each against a budget line that looked '
+      + 'like it had room, together exceed the board-approved plan. Nobody cheated — the '
+      + 'aggregate was never authorised.',
+    exposure:
+      'Unauthorised expenditure, discovered at year end. In the demo, two budget lines '
+      + 'are over-committed by $4.6M combined.',
+    shares: ['Finance (the money)', 'Procurement (the commitment)', 'Audit (the evidence)'],
+    status: 'DESIGNED',
+    modules: ['backend/migrations/002_budget_commitments.js',
+      'backend/src/modules/finance/cost-authority.js'],
+  },
+  {
+    id: 'fleet',
+    name: 'Fleet & Airworthiness',
+    problem:
+      'A life-limited part wears out on three clocks at once — cycles, hours and calendar '
+      + 'months. A part with 50% of cycle life and 4% of calendar life must come out now. '
+      + 'Separately, applying a Service Bulletin does not satisfy the Airworthiness '
+      + 'Directive that adopts it.',
+    exposure:
+      'Operating beyond limit risks the Air Operator Certificate. An overdue directive '
+      + 'grounds the aircraft: lost revenue while lease and insurance continue.',
+    shares: ['Finance (maintenance cost)', 'Procurement (spares)', 'Compliance (legality)'],
+    status: 'DELIVERED',
+    modules: ['shared/src/airworthiness.js', 'shared/src/routing/'],
+  },
+  {
+    id: 'fuel',
+    name: 'Fuel & Routing',
+    problem:
+      'Uplift is not burn, and planned burn is not actual burn. Tankering — carrying fuel '
+      + 'forward from a cheap station to an expensive one — is decided by habit rather '
+      + 'than by calculation.',
+    exposure:
+      'Fuel is 25–35% of operating cost. Buying at the wrong station is a direct, '
+      + 'repeatable cash loss on every single flight.',
+    shares: ['Finance (the cost line)', 'Fleet (the aircraft)', 'Carbon (the emissions)'],
+    status: 'DELIVERED',
+    modules: ['shared/src/fuel.js', 'shared/src/routing/constrained-path.js',
+      'shared/src/routing/refuel.js'],
+  },
+  {
+    id: 'compliance',
+    name: 'Carbon & Regulatory Compliance',
+    problem:
+      'CORSIA and the EU ETS both touch the same flights, and each tonne must be counted '
+      + 'exactly once. Double-counting is a compliance error and, at allowance prices above '
+      + 'EUR 80 per tonne, a seven-figure mistake.',
+    exposure:
+      'Allowance cost in the millions for a mid-size carrier. Sustainable aviation fuel is '
+      + 'the only lever with a zero emissions factor.',
+    shares: ['Fuel (the input)', 'Fleet (aircraft weight)', 'Finance (the cost)'],
+    status: 'DELIVERED',
+    modules: ['shared/src/carbon.js', 'shared/src/domain.js'],
+  },
+];
+
+/**
+ * The planning horizon, stated as scope rather than as a sales promise.
+ *
+ * Sixteen departments are registered because aviation regulations mandate
+ * named accountable managers, so the structure is a regulatory artefact
+ * rather than a UI preference. Five are functional; eleven are registered
+ * with roles and a portal shell and their operational logic is explicitly
+ * deferred rather than faked.
+ */
+export const ROADMAP = [
+  { phase: 1, departments: ['Finance & Treasury', 'Procurement & Supply',
+    'Technical / Engineering', 'Executive', 'IT / Admin'], state: 'operational' },
+  { phase: 2, departments: ['Flight Ops', 'Crew Scheduling', 'Training & Standards',
+    'Safety & Risk', 'Quality Assurance', 'Commercial', 'Ticketing',
+    'Customer Service', 'Cargo', 'Ground Ops', 'HR'], state: 'registered' },
+];
+
+export const DELIVERY_STATES = {
+  DELIVERED: 'Calculations implemented and verified by test',
+  DESIGNED: 'Schema and logic written, never executed against a database',
+  PLANNED: 'Scope registered, logic deliberately deferred',
+};
+
+/* ------------------------------------------------------------------ *
  * Derive the live status — never hard-code it
  * ------------------------------------------------------------------ */
 

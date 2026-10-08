@@ -622,22 +622,22 @@ export function airworthiness(m) {
   // Dispatch gate.
   const gateTable = table([
     { key: 'ac', label: 'Airframe', cls: 'strong mono',
-      render: (ac) => `${ac.aircraftType} MSN ${ac.serialNumber}` },
+      render: (_v, row) => `${row.ac.aircraftType} MSN ${row.ac.serialNumber}` },
     { key: 'applicable', label: 'Applicable', num: true,
-      render: (r) => int(r.g.applicableCount) },
+      render: (_v, row) => int(row.g.applicableCount) },
     { key: 'overdue', label: 'Overdue', num: true,
-      render: (r) => r.g.overdueCount === 0 ? pill('0', 'ok')
-        : el('span', { class: 'pill pill-bad' }, String(r.g.overdueCount)) },
+      render: (_v, row) => row.g.overdueCount === 0 ? pill('0', 'ok')
+        : el('span', { class: 'pill pill-bad' }, String(row.g.overdueCount)) },
     { key: 'dueSoon', label: 'Due soon', num: true,
-      render: (r) => r.g.dueSoonCount === 0 ? pill('0', 'neutral') : pill(String(r.g.dueSoonCount), 'warn') },
+      render: (_v, row) => row.g.dueSoonCount === 0 ? pill('0', 'neutral') : pill(String(row.g.dueSoonCount), 'warn') },
     { key: 'illegal', label: 'Illegal deferral', num: true,
-      render: (r) => r.g.illegalDeferralAttempts.length === 0
+      render: (_v, row) => row.g.illegalDeferralAttempts.length === 0
         ? pill('none', 'ok')
-        : el('span', { class: 'pill pill-bad' }, r.g.illegalDeferralAttempts.join(', ')) },
-    { key: 'dispatchable', label: 'Dispatch', render: (r) =>
-      r.g.dispatchable ? pill('CLEAR', 'ok') : pill('BLOCKED', 'bad') },
-    { key: 'nextDue', label: 'Next due', render: (r) => r.g.nextDue
-      ? el('span', { class: 'mono' }, `${r.g.nextDue.reference} · ${r.g.nextDue.controllingCounter} · ${int(r.g.nextDue.remaining)}`)
+        : el('span', { class: 'pill pill-bad' }, row.g.illegalDeferralAttempts.join(', ')) },
+    { key: 'dispatchable', label: 'Dispatch', render: (_v, row) =>
+      row.g.dispatchable ? pill('CLEAR', 'ok') : pill('BLOCKED', 'bad') },
+    { key: 'nextDue', label: 'Next due', render: (_v, row) => row.g.nextDue
+      ? el('span', { class: 'mono' }, `${row.g.nextDue.reference} · ${row.g.nextDue.controllingCounter} · ${int(row.g.nextDue.remaining)}`)
       : el('span', { class: 'mono' }, '—') },
   ], gateRows);
 
@@ -663,21 +663,22 @@ export function airworthiness(m) {
     'adsbApplies() — applicability, then the controlling threshold',
     table([
       { key: 'ref', label: 'Reference', cls: 'strong mono',
-        render: (ad) => ad.reference },
-      { key: 'kind', label: 'Type', render: (ad) => pill(ad.kind, ad.kind === 'AD' ? 'info' : 'neutral') },
-      { key: 'auth', label: 'Authority', render: (ad) => ad.authority },
+        render: (_v, row) => row.ad.reference },
+      { key: 'kind', label: 'Type', render: (_v, row) => pill(row.ad.kind, row.ad.kind === 'AD' ? 'info' : 'neutral') },
+      { key: 'auth', label: 'Authority', render: (_v, row) => row.ad.authority },
       { key: 'ata', label: 'ATA', cls: 'mono',
-        render: (ad) => ad.ataChapter ? `${ad.ataChapter} ${ATA_CHAPTER_NAMES[ad.ataChapter] ?? ''}` : '—' },
-      { key: 'applies', label: 'Applies', render: (r) => r.applies
+        render: (_v, row) => row.ad.ataChapter ? `${row.ad.ataChapter} ${ATA_CHAPTER_NAMES[row.ad.ataChapter] ?? ''}` : '—' },
+      { key: 'applies', label: 'Applies', render: (_v, row) => row.r.applies
         ? pill('YES', 'ok') : pill('no', 'neutral') },
-      { key: 'status', label: 'Status', render: (r) => {
+      { key: 'status', label: 'Status', render: (_v, row) => {
+        const r = row.r;
         if (!r.applies) return el('span', { class: 'mono', style: 'color:var(--faint);font-size:11px' }, r.reason);
         const st = r.complianceStatus.status;
         return pill(st, st === 'COMPLIANT' ? 'ok' : st === 'DUE_SOON' ? 'warn' : 'bad');
       } },
-      { key: 'remaining', label: 'Remaining', num: true, render: (r) => r.applies
-        ? `${int(r.complianceStatus.remaining)} ${r.complianceStatus.unit}` : '—' },
-      { key: 'mandatory', label: 'Mandatory', render: (r) => r.applies && r.complianceStatus.requiresMandatoryInstruction
+      { key: 'remaining', label: 'Remaining', num: true, render: (_v, row) => row.r.applies
+        ? `${int(row.r.complianceStatus.remaining)} ${row.r.complianceStatus.unit}` : '—' },
+      { key: 'mandatory', label: 'Mandatory', render: (_v, row) => row.r.applies && row.r.complianceStatus.requiresMandatoryInstruction
         ? pill('YES', 'info') : pill('no', 'neutral') },
     ], dirRows)));
 
@@ -691,23 +692,23 @@ export function airworthiness(m) {
     'melStatus() — the off-by-one this exists to get right',
     el('div', {},
       table([
-        { key: 'ref', label: 'Item', cls: 'strong mono', render: (r) => r.d.itemRef },
-        { key: 'cat', label: 'Category', num: true, render: (r) => r.s.category },
-        { key: 'interval', label: 'Standard interval', render: (r) => {
-          const days = MEL_CATEGORIES[r.s.category]?.days;
+        { key: 'ref', label: 'Item', cls: 'strong mono', render: (_v, row) => row.d.itemRef },
+        { key: 'cat', label: 'Category', num: true, render: (_v, row) => row.s.category },
+        { key: 'interval', label: 'Standard interval', render: (_v, row) => {
+          const days = MEL_CATEGORIES[row.s.category]?.days;
           return days === null || days === undefined
             ? el('span', { class: 'pill pill-warn' }, 'none specified')
             : `${days} days excluding day of discovery`;
         } },
-        { key: 'discovered', label: 'Discovered', render: (r) =>
-          el('span', { class: 'mono' }, new Date(r.d.discoveredAtMs).toISOString().slice(0, 10)) },
-        { key: 'rectifyBy', label: 'Rectify by', render: (r) => r.s.rectifyByMs === null
+        { key: 'discovered', label: 'Discovered', render: (_v, row) =>
+          el('span', { class: 'mono' }, new Date(row.d.discoveredAtMs).toISOString().slice(0, 10)) },
+        { key: 'rectifyBy', label: 'Rectify by', render: (_v, row) => row.s.rectifyByMs === null
           ? el('span', { class: 'mono' }, 'none')
-          : el('span', { class: 'mono' }, new Date(r.s.rectifyByMs).toISOString().slice(0, 19).replace('T', ' ')) },
-        { key: 'elapsed', label: 'Days elapsed', num: true, render: (r) => int(r.s.elapsedDays) },
-        { key: 'remaining', label: 'Days remaining', num: true, render: (r) => r.s.daysRemaining },
-        { key: 'status', label: 'Status', render: (r) =>
-          pill(r.s.status, r.s.status === 'VALID' ? 'ok' : r.s.status === 'DUE_SOON' ? 'warn' : 'bad') },
+          : el('span', { class: 'mono' }, new Date(row.s.rectifyByMs).toISOString().slice(0, 19).replace('T', ' ')) },
+        { key: 'elapsed', label: 'Days elapsed', num: true, render: (_v, row) => int(row.s.elapsedDays) },
+        { key: 'remaining', label: 'Days remaining', num: true, render: (_v, row) => row.s.daysRemaining },
+        { key: 'status', label: 'Status', render: (_v, row) =>
+          pill(row.s.status, row.s.status === 'VALID' ? 'ok' : row.s.status === 'DUE_SOON' ? 'warn' : 'bad') },
       ], melRows),
       el('div', { class: 'explain' },
         'Category B is "3 calendar days excluding the day of discovery", running to the ',
