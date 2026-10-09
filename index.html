@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMS — Airline Management System</title>
+<link rel="stylesheet" href="./frontend/css/app.css?v=916b8a70583e">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">AMS</span>
+    <span class="brand-sub">Airline Management System</span>
+  </div>
+
+  <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab" data-view="firstrun"   role="tab">Start</button>
+    <button class="tab" data-view="home"        role="tab">Home</button>
+    <button class="tab" data-view="executive"   role="tab">Executive Brief</button>
+    <button class="tab" data-view="portal"      role="tab">Portals &amp; Approvals</button>
+    <button class="tab" data-view="whatif"      role="tab">What-If Inputs</button>
+    <button class="tab" data-view="accounts"    role="tab">Accounts</button>
+    <button class="tab" data-view="problem"     role="tab">The Problem</button>
+    <button class="tab" data-view="ecosystem"   role="tab">Ecosystem</button>
+    <button class="tab" data-view="dashboard"   role="tab">Dashboard</button>
+    <button class="tab" data-view="costing"     role="tab">Costing</button>
+    <button class="tab" data-view="routing"     role="tab">Route Planner</button>
+    <button class="tab" data-view="fuel"        role="tab">Fuel &amp; Tankering</button>
+    <button class="tab" data-view="airworthiness" role="tab">Airworthiness</button>
+    <button class="tab" data-view="carbon"      role="tab">Carbon</button>
+    <button class="tab" data-view="audit"       role="tab">Audit Trail</button>
+  </nav>
+
+  <div class="topbar-right">
+    <label class="aud-label" for="audience-switch">View as</label>
+    <select id="audience-switch" class="aud-switch" aria-label="Audience">
+      <option value="executive">Executive</option>
+      <option value="technical">Engineer</option>
+    </select>
+    <span class="tenant" id="tenant-label">—</span>
+    <span class="badge badge-warn" id="verdict-badge">computing…</span>
+  </div>
+</header>
+
+<main id="view" class="view" role="main">
+  <div class="loading">Loading domain modules…</div>
+</main>
+
+<footer class="footer">
+  <span>Every figure below is computed by the live <code>shared/src/</code> modules
+        — money.js, costing.js, metrics.js, airworthiness.js, fuel.js, carbon.js,
+        routing/. No mock data.</span>
+  <span class="footer-right" id="test-count">—</span>
+</footer>
+
+<script type="module" src="./frontend/js/app.js?v=916b8a70583e"></script>
+  <div id="build-stamp" title="asset fingerprint">916b8a70583e</div>
+  </body>
+</html>
