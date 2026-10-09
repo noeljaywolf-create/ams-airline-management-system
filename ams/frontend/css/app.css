@@ -998,3 +998,43 @@ pre.decision .n { color: #f0b37e; }
 .row-click { cursor: pointer; }
 .row-click:hover { background: rgba(20, 60, 90, .04); }
 tr.row-click:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ==================================================================== *
+ * FIRST RUN
+ *
+ * The product teaches by being used, not by being described. These are
+ * the three things worth knowing, each one a real control on a real store.
+ * ==================================================================== */
+.tour-head { margin-bottom: 4px; }
+.tour-title { font-size: 22px; font-weight: 700; letter-spacing: -.2px; }
+.tour-sub { font-size: 13px; color: var(--ink-2); margin-top: 3px; }
+
+.tour-step {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 9px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: #fff;
+  transition: border-color .15s, background .15s;
+}
+.tour-step.done { border-left-color: var(--ok); background: rgba(0, 130, 90, .03); }
+.tour-step-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.tour-num {
+  flex: 0 0 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.tour-step.done .tour-num { background: var(--ok); }
+.tour-step-title { font-size: 15.5px; font-weight: 700; }
+.tour-step-blurb { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+
+.tour-status { font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+.tour-status .notice { margin-bottom: 10px; }
+.tour-status .btn { margin-top: 10px; }
+
+.tour-done {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-top: 1px solid var(--line-soft); margin-top: 4px;
+}

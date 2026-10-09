@@ -526,11 +526,41 @@ try {
     // that would have caught Audit Trail being unreachable.
     const html = readFileSync(resolve(ROOT, 'index.html'), 'utf8');
     const buttons = [...html.matchAll(/class="tab"\s+data-view="(\w+)"/g)].map((m) => m[1]);
-    assert(buttons.length >= 14, `only ${buttons.length} tab buttons in index.html: ${buttons.join(', ')}`);
-    for (const required of ['home', 'executive', 'portal', 'whatif', 'accounts', 'audit']) {
+    assert(buttons.length >= 15, `only ${buttons.length} tab buttons in index.html: ${buttons.join(', ')}`);
+    for (const required of ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'audit']) {
       assert(buttons.includes(required), `no tab button for "${required}"`);
     }
     return `${buttons.length} tab buttons declared`;
+  });
+
+  await step('the first run teaches by being used', async () => {
+    // The landing tab on a first visit. It must be a working surface, not a
+    // welcome page: raise, self-approve, get refused, hand off.
+    select('firstrun');
+    await settle();
+    assert(host.text.includes('First run'), 'first run view did not render');
+
+    const raise = byText('button', 'Raise it');
+    assert(raise, 'no "Raise it" control on the first run');
+    raise.click();
+    await settle();
+
+    const approve = byText('button', 'Approve it');
+    assert(approve, 'no "Approve it" control on the first run');
+    approve.click();
+    await settle();
+
+    assert(host.text.includes('SOD_SELF_APPROVAL'),
+      'the first run did NOT demonstrate the self-approval refusal — this is the whole point of the tour');
+    assert(host.text.includes('audit chain'),
+      'the refusal did not mention that it was written to the audit chain');
+
+    const handoff = byText('button', 'Hand it to the CEO');
+    assert(handoff, 'no hand-off control after the refusal');
+    handoff.click();
+    await settle();
+    assert(host.text.includes('Approved by the CEO'), 'the hand-off to the CEO did not complete the approval');
+    return 'refusal demonstrated, then handed off';
   });
 
   if (problems.length) {
