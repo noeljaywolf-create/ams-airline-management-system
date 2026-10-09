@@ -93,6 +93,15 @@ let model = null;
 let current = 'home';
 
 function select(name) {
+  // A stale bundle paired with a fresh index.html can dispatch to a view
+  // this copy does not have. That is a cache artefact, not a user error, and
+  // blanking the page is the worst possible response to it — fall back to
+  // the landing view and say so, rather than throwing inside the renderer.
+  if (!Object.hasOwn(VIEWS, name)) {
+    const fallback = Object.hasOwn(VIEWS, 'home') ? 'home' : Object.keys(VIEWS)[0];
+    console.warn(`view "${name}" is not in this bundle; falling back to "${fallback}"`);
+    name = fallback;
+  }
   current = name;
 
   for (const tab of tabsHost.querySelectorAll('.tab')) {

@@ -1038,3 +1038,22 @@ tr.row-click:focus-visible { outline: 2px solid var(--accent); outline-offset: -
   display: flex; align-items: center; gap: 14px;
   padding: 14px 16px; border-top: 1px solid var(--line-soft); margin-top: 4px;
 }
+
+/* Build fingerprint, injected by tools/build-site.mjs. Visible so anyone
+   looking at the demo can tell at a glance whether they are on the current
+   build or a cached one. It is the first thing to check when a deploy
+   "didn't show up". */
+#build-stamp {
+  position: fixed;
+  bottom: 6px;
+  right: 10px;
+  z-index: 40;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: var(--faint);
+  opacity: .55;
+  pointer-events: none;
+  user-select: text;
+}
+#build-stamp:hover { opacity: 1; }

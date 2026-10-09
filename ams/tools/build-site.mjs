@@ -31,9 +31,10 @@
  * Usage:  node tools/build-site.mjs [outDir]
  */
 
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -46,6 +47,53 @@ const TREES = [
   'shared/src',
   'backend/src',
 ];
+
+/**
+ * Every file under `dir`, as a path relative to `dir`, POSIX separators.
+ * Relative by design: callers join these onto different roots (the source
+ * tree and the built tree), and an absolute path joined onto a second root
+ * silently produces nonsense rather than an error.
+ */
+async function walk(dir) {
+  const out = [];
+  const visit = async (d) => {
+    for (const entry of await readdir(d, { withFileTypes: true })) {
+      const p = join(d, entry.name);
+      if (entry.isDirectory()) await visit(p);
+      else out.push(p.slice(dir.length + 1).replace(/\\/g, '/'));
+    }
+  };
+  await visit(dir);
+  return out;
+}
+
+/**
+ * Append `?v=BUILD` to every relative import specifier in a directory tree.
+ *
+ * The entry point is the only <script> tag, so busting it alone would leave
+ * every module it reaches cached. This walks the JavaScript and rewrites the
+ * specifiers, which is what actually guarantees one coherent graph per page
+ * load.
+ *
+ * @returns {Promise<number>} how many specifiers were rewritten
+ */
+async function rewriteSpecifiers(absDir, prefixToRoot, build) {
+  let n = 0;
+  for (const abs of await walk(absDir)) {
+    if (!abs.endsWith('.js')) continue;
+    const src = await readFile(join(absDir, abs), 'utf8');
+    const next = src.replace(
+      /(\bfrom\s*|\bimport\s*\(\s*)(['"])(\.\.?\/[^'"]+?)\2/g,
+      (m, lead, q, spec) => {
+        if (spec.includes('?v=')) return m;
+        n += 1;
+        return `${lead}${q}${spec}?v=${build}${q}`;
+      },
+    );
+    if (next !== src) await writeFile(join(absDir, abs), next, 'utf8');
+  }
+  return n;
+}
 
 async function main() {
   if (existsSync(OUT)) await rm(OUT, { recursive: true, force: true });
@@ -71,12 +119,52 @@ async function main() {
   const remainingAbsolute = rewritten.match(/(?:href|src)="\/(?!\/)/g);
   if (remainingAbsolute) {
     throw new Error(
-      `index.html still has root-absolute asset paths: ${remainingAbsolute.join(', ')}. ` +
-      'These would 404 under github.io/<repo>/ and must be rewritten.',
+      `index.html still has root-absolute asset paths: ${remainingAbsolute.join(', ')}. `
+      + 'These would 404 under github.io/<repo>/ and must be rewritten.',
     );
   }
 
-  await writeFile(join(OUT, 'index.html'), rewritten, 'utf8');
+  /* ---- cache busting -------------------------------------------------
+   *
+   * GitHub Pages serves with `max-age=600`, and browsers cache ES modules
+   * aggressively. That produced a genuinely broken state: a user holding a
+   * FRESH index.html (new tab list) alongside a STALE app.js (old VIEWS
+   * map). Clicking the new tab dispatched to `VIEWS['firstrun']`, which
+   * did not exist in the old bundle, and the page went blank.
+   *
+   * The fix is to make it impossible rather than to ask people to remember
+   * a keyboard shortcut. A short content hash of the whole module graph is
+   * appended to every asset reference, so any change to any module changes
+   * every URL. A stale HTML file and a fresh module can no longer coexist
+   * in one page load.
+   */
+  const graph = [];
+  for (const tree of TREES) {
+    for (const rel of await walk(join(ROOT, tree))) graph.push(`${tree}/${rel}`);
+  }
+  graph.sort();
+  const fingerprint = createHash('sha256');
+  for (const rel of graph) {
+    fingerprint.update(rel);
+    fingerprint.update(await readFile(join(OUT, rel.split('/').join('\\'))));
+  }
+  const BUILD = fingerprint.digest('hex').slice(0, 12);
+
+  // Sub-resources are not listed in index.html, so they are busted at the
+  // entry point: app.js is the only script tag, and every module below it
+  // is reached by its own specifier. Rewriting those specifiers is what
+  // actually guarantees a coherent graph.
+  const busted = await rewriteSpecifiers(join(OUT, 'frontend/js'), '..', BUILD);
+
+  const stamped = rewritten
+    .replace('href="./frontend/css/app.css"', `href="./frontend/css/app.css?v=${BUILD}"`)
+    .replace('src="./frontend/js/app.js"', `src="./frontend/js/app.js?v=${BUILD}"`)
+    // A visible build stamp, so anyone looking at the demo can tell at a
+    // glance whether they are on the current build or a cached one.
+    .replace('</body>', `  <div id="build-stamp" title="asset fingerprint">${BUILD}</div>\n  </body>`);
+
+  await writeFile(join(OUT, 'index.html'), stamped, 'utf8');
+  console.log(`  asset fingerprint ${BUILD} (${graph.length} modules, ${busted} specifiers busted)`);
 
   // Pages must not run Jekyll, which ignores files beginning with _.
   await writeFile(join(OUT, '.nojekyll'), '', 'utf8');

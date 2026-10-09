@@ -47,7 +47,12 @@ while (queue.length) {
     ...[...src.matchAll(/\bimport\s*\(\s*'(\.[^']+)'\s*\)/g)].map((m) => m[1]),
   ];
   for (const s of specs) {
-    queue.push(relative(ROOT, resolve(dirname(abs), s)).replace(/\\/g, '/'));
+    // Strip the cache-busting query that tools/build-site.mjs appends to
+    // every relative specifier. Without this the walker treats
+    // `./model.js?v=8a7d93a68bd2` as a FILENAME, reports ten phantom
+    // missing modules, and a perfectly clean build looks broken.
+    const clean = s.split('?')[0];
+    queue.push(relative(ROOT, resolve(dirname(abs), clean)).replace(/\\/g, '/'));
   }
 }
 
