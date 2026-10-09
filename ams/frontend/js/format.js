@@ -106,11 +106,64 @@ export function card(title, note, body, bodyClass = '') {
 }
 
 /** KPI tile. tone: 'good' | 'bad' | 'warn' | null */
-export function kpi(label, value, sub, tone = null) {
-  return el('div', { class: `kpi ${tone ?? ''}` },
+/**
+ * A KPI tile.
+ *
+ * Every figure in this system is derived, so every figure is EXPLAINABLE.
+ * Pass a `why` array and the tile becomes a control: clicking it expands the
+ * derivation — the inputs, the formula, the test that pins it.
+ *
+ * This is the difference between a prototype and a document. In a document
+ * the number is the end of the sentence. Here it is the beginning of one,
+ * and a CEO or auditor can pull on any number in the system and see exactly
+ * where it came from.
+ *
+ * @param {string} label
+ * @param {string} value
+ * @param {string} [sub]
+ * @param {string|null} [tone]
+ * @param {{inputs?: string[], formula?: string, test?: string}} [why]
+ */
+export function kpi(label, value, sub, tone = null, why = null) {
+  const tile = el('div', { class: `kpi ${tone ?? ''}${why ? ' kpi-why' : ''}`, tabindex: why ? '0' : null, role: why ? 'button' : null },
     el('div', { class: 'kpi-label' }, label),
     el('div', { class: 'kpi-value' }, value),
     sub ? el('div', { class: 'kpi-sub' }, sub) : null);
+
+  if (why) {
+    const detail = el('div', { class: 'kpi-detail', hidden: 'hidden' });
+    if (why.formula) {
+      detail.append(el('div', { class: 'kpi-detail-row' },
+        el('span', { class: 'kpi-detail-k' }, 'formula'),
+        el('code', {}, why.formula)));
+    }
+    for (const input of why.inputs ?? []) {
+      detail.append(el('div', { class: 'kpi-detail-row' },
+        el('span', { class: 'kpi-detail-k' }, 'input'),
+        el('span', {}, input)));
+    }
+    if (why.test) {
+      detail.append(el('div', { class: 'kpi-detail-row' },
+        el('span', { class: 'kpi-detail-k' }, 'pinned by'),
+        el('code', {}, why.test)));
+    }
+    tile.append(detail);
+
+    const toggle = () => {
+      const showing = detail.hasAttribute('hidden');
+      if (showing) detail.removeAttribute('hidden'); else detail.setAttribute('hidden', '');
+      tile.classList.toggle('open', showing);
+    };
+    // Listeners rather than an inline handler string, for the same reason
+    // the whole codebase does: a string handler is a runtime error waiting
+    // to happen and cannot be delegated.
+    tile.addEventListener('click', toggle);
+    tile.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  }
+
+  return tile;
 }
 
 export function kpis(...tiles) {

@@ -150,13 +150,20 @@ class StubElement extends StubNode {
    */
   walk(sel) {
     const isClass = sel.startsWith('.');
-    const want = (isClass ? sel.slice(1) : sel).toUpperCase();
+    // Tag names are compared case-insensitively (HTML uppercases them);
+    // CLASS names are not. Uppercasing a class selector silently made every
+    // `.foo` lookup return nothing, which is how a genuinely broken
+    // derivation panel could look like a passing test.
+    const want = isClass ? sel.slice(1) : sel.toUpperCase();
     const out = [];
     const visit = (n) => {
       for (const c of n.children ?? []) {
         if (c.nodeType === 1) {
           const cls = String(c.className ?? c._attrs?.class ?? '');
-          if (isClass ? cls.split(/\s+/).includes(want) : String(c.tagName ?? '').toUpperCase() === want) out.push(c);
+          const hit = isClass
+            ? cls.split(/\s+/).includes(want)
+            : String(c.tagName ?? '').toUpperCase() === want;
+          if (hit) out.push(c);
         }
         visit(c);
       }
@@ -174,6 +181,7 @@ class StubElement extends StubNode {
   }
   setAttribute(k, v) { this._attrs[k] = v; }
   getAttribute(k) { return this._attrs[k] ?? null; }
+  hasAttribute(k) { return k in this._attrs; }
   removeAttribute(k) { delete this._attrs[k]; }
   /**
    * A browser's `<select>` reads as its first option until one is chosen, and
@@ -468,6 +476,45 @@ try {
     assert(host.text.includes('Effect on this year'), 'moving a slider produced no effect panel');
     assert(slider.value !== before, 'the slider did not change');
     return 'fuel index moved, ratios recomputed';
+  });
+
+  await step('every figure on the dashboard can explain itself', async () => {
+    select('dashboard');
+    // `el()` assigns `class` to `className`, not to the attribute bag.
+    const explainable = host.walk('div').filter((n) =>
+      String(n.className ?? '').split(/\s+/).includes('kpi-why'));
+    assert(explainable.length >= 5, `only ${explainable.length} KPI tiles carry a derivation`);
+
+    // Click one and prove the panel actually opens. A tile that looks
+    // clickable and does nothing is worse than a plain label.
+    const first = explainable[0];
+    const panel = first.querySelector('.kpi-detail');
+    assert(panel, 'clickable KPI has no derivation panel');
+    assert(panel.getAttribute('hidden') !== null, 'derivation panel starts open instead of collapsed');
+
+    first.click();
+    assert(panel.getAttribute('hidden') === null, 'clicking the tile did not reveal its derivation');
+    const text = panel.text ?? '';
+    assert(text.includes('formula'), 'derivation panel has no formula row');
+    assert(text.includes('pinned by'), 'derivation panel does not name the test that pins the figure');
+
+    first.click();
+    assert(panel.getAttribute('hidden') !== null, 'clicking again did not collapse the panel');
+    return `${explainable.length} KPI tiles derive on click`;
+  });
+
+  await step('index.html declares a tab button for every view', async () => {
+    // The DOM stub never parses index.html, so it cannot see the tab strip —
+    // and a view with no button is invisible in the demo while still passing
+    // every render test. Count the real markup instead. This is the check
+    // that would have caught Audit Trail being unreachable.
+    const html = readFileSync(resolve(ROOT, 'index.html'), 'utf8');
+    const buttons = [...html.matchAll(/class="tab"\s+data-view="(\w+)"/g)].map((m) => m[1]);
+    assert(buttons.length >= 14, `only ${buttons.length} tab buttons in index.html: ${buttons.join(', ')}`);
+    for (const required of ['home', 'executive', 'portal', 'whatif', 'accounts', 'audit']) {
+      assert(buttons.includes(required), `no tab button for "${required}"`);
+    }
+    return `${buttons.length} tab buttons declared`;
   });
 
   if (problems.length) {

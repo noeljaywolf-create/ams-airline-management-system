@@ -42,19 +42,61 @@ export function dashboard(m) {
 
   frag.append(kpis(
     kpi('Operating result', moneyShort(t.contributionCents),
-      `${money(t.contributionCents)} exactly`, good ? 'good' : 'bad'),
+      `${money(t.contributionCents)} exactly`, good ? 'good' : 'bad',
+      {
+        formula: 'revenueCents − fullCostCents, where fullCost = direct + fleet-fixed allocated by block hours',
+        inputs: [
+          `revenue: ${money(t.revenueCents)} from ${int(t.passengers)} carried passengers`,
+          `direct cost: ${money(t.directCostCents)}`,
+          `fleet-fixed allocated: ${money(t.fleetFixedCostCents)}`,
+        ],
+        test: 'metrics.test.js — result is derived, never authored',
+      }),
     kpi('CASK', `${microcents(t.caskMicrocents)}`,
-      `per available seat-km · ${int(t.asks)} ASK`),
+      `per available seat-km · ${int(t.asks)} ASK`, null,
+      {
+        formula: 'fullCostCents × 1,000,000 ÷ asks, rounded half-up',
+        inputs: [
+          `full cost: ${money(t.fullCostCents)}`,
+          `available seat-km: ${int(t.asks)}`,
+        ],
+        test: 'metrics.test.js — cask only uses flight-attributable plus allocated fixed',
+      }),
     kpi('RASK', `${microcents(t.raskMicrocents)}`,
       `per available seat-km · margin ${pct(v.marginPpm)}`,
-      v.marginPpm > 0 ? 'good' : 'bad'),
+      v.marginPpm > 0 ? 'good' : 'bad',
+      {
+        formula: 'revenueCents × 1,000,000 ÷ asks',
+        inputs: [`revenue: ${money(t.revenueCents)}`],
+        test: 'metrics.test.js — revenue is the numerator, so CASK and RASK are comparable to any carrier using the same taxonomy',
+      }),
     kpi('Load factor', pct(t.loadFactorPpm),
       `break-even at ${pct(t.breakEvenLoadFactorPpm)}`,
-      t.loadFactorPpm >= t.breakEvenLoadFactorPpm ? 'good' : 'bad'),
+      t.loadFactorPpm >= t.breakEvenLoadFactorPpm ? 'good' : 'bad',
+      {
+        formula: 'revenuePpm ÷ costPpm gives break-even LF; headroom = actual − break-even',
+        inputs: [
+          `${int(t.passengers)} passengers of ${int(t.seatsOffered)} seats offered`,
+          `headroom: ${pct(t.loadFactorPpm - t.breakEvenLoadFactorPpm)}`,
+        ],
+        test: 'metrics.test.js — break-even is recomputed, not held constant',
+      }),
     kpi('Marginal seat cost', money(m.total.marginalSeatCostCents),
-      'what one more passenger costs'),
+      'what one more passenger costs', null,
+      {
+        formula: 'variable cost per flight ÷ seats offered, excluding fleet-fixed',
+        inputs: ['this is the CASK of an EMPTY seat — the number behind every fare decision'],
+        test: 'costing.test.js — excludes fleet-fixed by construction',
+      }),
     kpi('Fleet-fixed pool', moneyShort(m.poolCents),
-      `allocated by BLOCK_HOURS`),
+      `allocated by BLOCK_HOURS`, null,
+      {
+        formula: 'sum of non-flight-attributable cost ÷ total block hours, then × each flight block hours',
+        inputs: [
+          'driver is block hours, not seats or distance — an aircraft costs the same whether it flies far or near',
+        ],
+        test: 'costing.test.js — allocation is exact: the parts sum to the whole',
+      }),
   ));
 
   // Verdict panel with the gap meter.
