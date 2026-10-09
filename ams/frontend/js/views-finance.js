@@ -176,15 +176,7 @@ export function accountsView(model) {
       kpi('Open payable', usd(ap.openPayable().openCents), `${ap.openPayable().openCount} invoices`),
       kpi('Blocked', usd(ap.openPayable().blockedCents),
         `${ap.openPayable().blockedCount} held by the three-way match`,
-        ap.openPayable().blockedCents > 0 ? 'bad' : 'good'),
-      el('div', { class: 'explain', style: 'margin-top:12px' },
-        el('strong', {}, 'Trial-balance hash: '),
-        el('span', { class: 'mono' }, `${canonicalTrialBalance(gl, PERIOD).length} bytes of canonical data`)),
-      el('div', { class: 'explain' },
-        'Because the ledger is append-only and the period is closed, the trial balance is a '
-        + 'deterministic function of what was posted. Publishing its hash lets an auditor verify '
-        + 'the accounts independently. Run it twice and the hash MUST be identical — if it is not, '
-        + 'something in the period is mutable and the guarantee is void.'))));
+        ap.openPayable().blockedCents > 0 ? 'bad' : 'good'))));
 
   return frag;
 }

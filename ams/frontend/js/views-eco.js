@@ -25,11 +25,7 @@ export function problem(m) {
   const frag = document.createDocumentFragment();
   const totals = ecosystemTotals();
 
-  frag.append(el('p', { class: 'lede' },
-    'Every capability in this system exists because of a specific, recurring ' +
-    'operational failure. None of these are hypothetical, and none are a ' +
-    'competitor\'s weakness — they are what happens when an airline tries to run ' +
-    'finance, fleet and procurement without attributing cost at the moment it occurs.'));
+  
 
   frag.append(kpis(
     kpi('Failure modes addressed', String(totals.problems),
@@ -48,9 +44,6 @@ export function problem(m) {
     frag.append(card(p.headline,
       `addresses ${caps.length} capabilit${caps.length === 1 ? 'y' : 'ies'}`,
       el('div', {},
-        el('p', { class: 'lede', style: 'margin-bottom:12px' }, p.detail),
-        el('div', { class: 'explain' },
-          el('strong', {}, 'Consequence: '), p.consequence),
         el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:4px' },
           ...caps.map((c) => pill(c.name,
             c.status === 'BUILT' ? 'ok' : c.status === 'SCHEMA ONLY' ? 'warn' : 'bad'))),
@@ -74,11 +67,7 @@ export function ecosystem() {
   const caps = capabilityAudit();
   const totals = ecosystemTotals();
 
-  frag.append(el('p', { class: 'lede' },
-    'This page audits itself. Every export listed below was verified to exist by ' +
-    'importing the module at page load — if someone deletes a function, this table ' +
-    'reports it as degraded rather than continuing to advertise a capability that is ' +
-    'no longer in the code.'));
+  
 
   frag.append(kpis(
     kpi('Capabilities', String(totals.capabilities),
@@ -105,13 +94,6 @@ export function ecosystem() {
         `${built} of ${caps.length}`, 'ok')] : [],
       ...schema ? [bar('SCHEMA ONLY — designed, never executed', schema, caps.length,
         `${schema} of ${caps.length}`, 'warn')] : [],
-      el('div', { class: 'explain', style: 'margin-top:12px' },
-        el('strong', {}, 'Why "schema only" is not "done": '),
-        'The migrations and the two backend modules have never been executed against a ' +
-        'PostgreSQL database. Their SQL is written, their concurrency behaviour is documented ' +
-        'from the database specification rather than observed, and the cost-authority module\'s ' +
-        'type is a local stand-in awaiting the real Knex dependency. Everything in Parts IX ' +
-        'and X of the hard-engineering guide describes code that has not run.'),
       provenance('frontend/js/ecosystem.js — imports each module and inspects its exports'))));
 
   // The capability table.

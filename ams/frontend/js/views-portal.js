@@ -208,10 +208,6 @@ function costAuthority(store, me) {
         el('label', {}, 'Amount (USD)', amount),
         el('label', {}, 'Purpose', desc)),
       el('div', { class: 'form-actions' }, raiseBtn, overspendBtn),
-      el('div', { class: 'hint' },
-        'A pending request has NOT consumed the budget. Funds are committed only '
-        + 'on approval, and only if the line still has room. Try approving your own '
-        + 'request first — that is blocked, and the refusal is written to the chain.'),
       el('div', { class: 'queue' },
         ...(rows.length ? rows : [el('div', { class: 'empty' }, 'Nothing awaiting approval. Raise a request above.')])),
       decidedRows.length
@@ -307,10 +303,7 @@ function auditTrail(store) {
   });
 
   body.append(el('div', { class: 'form-actions' }, verifyBtn, result));
-  body.append(el('div', { class: 'hint' },
-    'Each entry is hashed together with the previous one, so editing any earlier '
-    + 'row changes every hash after it. Blocked attempts are recorded too: a '
-    + 'refusal is exactly what an auditor asks to see.'));
+  
 
   const rows = entries.slice().reverse().map((e) => el('tr', {},
     el('td', { class: 'mono' }, String(e.id)),
@@ -396,13 +389,7 @@ export function scenarioView(store) {
       slider('Load factor', 'loadFactorPct', 55, 100, 0.5, '%'),
       slider('USD index', 'fxUsdIndexPct', 90, 130, 1, '%'),
       slider('SAF share of uplift', 'safSharePct', 0, 30, 1, '%'),
-      el('div', { class: 'form-actions' }, reset),
-      el('div', { class: 'hint' },
-        'These are not multipliers applied to a printed result. Fuel is treated as '
-        + 'a share of cost, revenue moves with load factor, and the ratios are '
-        + 'recomputed from the adjusted sums — so break-even load factor moves '
-        + 'the way it actually does, which is the only reason to trust a tool '
-        + 'like this.'))));
+      el('div', { class: 'form-actions' }, reset))));
 
   if (base) {
     const adj = store.applyScenario(base);

@@ -259,16 +259,9 @@ export function home(m) {
       depts));
   }
 
-  const phaseNote = el('div', { class: 'explain', style: 'margin-top:12px' },
-    'Aviation regulations mandate named accountable managers, so the department structure is a ',
-    el('strong', {}, 'regulatory artefact'),
-    ', not a user-interface preference. Departments are registered with their roles and an empty ',
-    'portal rather than faked with placeholder logic: a department that appears to work but does ',
-    'not is worse than one that is visibly empty.');
-
   frag.append(card('Planning horizon',
     'scope registered, not a promise: deferred logic is stated as deferred',
-    el('div', {}, ...phaseRows, phaseNote)));
+    el('div', {}, ...phaseRows)));
 
   return frag;
 }
@@ -370,24 +363,11 @@ export function executive(m) {
   frag.append(card('Why the cost is what it is',
     'the distinction determines whether a route is viable at all',
     el('div', {},
-      el('div', { class: 'explain' },
-        el('strong', {}, 'Flight-attributable cost '), money(direct),
-        ' varies with flying the sector — fuel, crew, landing fees, catering. Known on the day of flight.\n',
-        el('strong', {}, 'Fleet-fixed cost '), money(fixed),
-        ' — lease, insurance, spares, admin crew, distribution — does not vary with whether this aircraft flies, ',
-        'and is allocated across sectors by an explicit rule rather than by accident.'),
       ...[
         ['Flight-attributable', direct, 'ok'],
         ['Fleet-fixed (allocated)', fixed, 'warn'],
       ].map(([label, value, tone]) => bar(label, value, t.fullCostCents,
         `${pct(Math.floor((value / t.fullCostCents) * 1_000_000), 0)} · ${moneyShort(value)}`, tone)),
-      el('div', { class: 'explain', style: 'margin-top:12px' },
-        'An extra passenger costs ', el('strong', {}, money(m.flights[0].marginalCostOfExtraSeatCents)),
-        ' — fuel for their weight and a tray. The full average cost per seat is ',
-        el('strong', {}, money(Math.round(m.flights[0].fullCostCents / m.flights[0].seatsOffered))),
-        '. The gap is the lease, the insurance and the landing fee, none of which move because one more person boarded. ',
-        'Both numbers must exist: pricing to marginal cost fills the aircraft and loses money, ',
-        'pricing to full cost loses the market.'),
       provenance('shared/src/costing.js', 'flightPnl()', 'allocateFleetFixed()'))));
 
   /* ---- what is not yet built ---- */

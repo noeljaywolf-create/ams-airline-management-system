@@ -283,6 +283,18 @@ try {
   console.log(`  verdict badge:     ${JSON.stringify(badge?.textContent)}`);
   console.log(`  view child nodes:  ${view ? view.children.length : 0}`);
 
+  /**
+   * Let queued microtasks and one macrotask run, so an async view handler
+   * (the audit chain hashes with Web Crypto) has finished before the DOM is
+   * measured. Without this, a working async view is reported as empty.
+   */
+  const settle = async () => {
+    // The audit view chains 14 sequential SHA-256 digests before it paints
+    // anything. Draining microtasks is not enough — each digest is a
+    // macrotask — so this yields real time, then drains again.
+    await new Promise((r) => setTimeout(r, 250));
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+  };
   const problems = [];
   if (!view || view.children.length === 0) {
     problems.push('view rendered no children — the loading placeholder is still showing');
@@ -323,6 +335,9 @@ try {
     for (const name of TABS) {
       try {
         select(name);
+        // Some views populate asynchronously (Web Crypto hashing in the
+        // audit chain). Measuring immediately would call a working view empty.
+        await settle();
         const host = nodes.get('view');
         const kids = host?.children?.length ?? 0;
         const painted = textOf(host);
@@ -338,9 +353,14 @@ try {
           const sample = unevaluated.slice(0, 3).join(' ');
           console.log(`  FAIL ${name.padEnd(16)} leaked un-evaluated template: ${sample}`);
           problems.push(`view "${name}" displays un-evaluated interpolation: ${sample}`);
-        } else if (kids === 0 || painted.trim() === '') {
-          console.log(`  FAIL ${name.padEnd(16)} rendered no visible content`);
-          problems.push(`view "${name}" rendered no visible content`);
+        } else if (kids === 0 || painted.trim().length < 120) {
+          // A view that renders an empty container does not throw, so
+          // "did not throw" passed while the Audit tab sat empty in front of
+          // users for a long time: its async `run()` was never called. A
+          // floor on painted content is what catches that class.
+          const len = painted.trim().length;
+          console.log(`  FAIL ${name.padEnd(16)} rendered almost nothing (${len} chars)`);
+          problems.push(`view "${name}" rendered only ${len} characters — it is effectively empty`);
         } else {
           console.log(`  ok   ${name.padEnd(16)} ${kids} root node(s), ${painted.trim().length} chars`);
         }
@@ -372,18 +392,6 @@ try {
   console.log('\nclicking the controls:');
   const host = nodes.get('view');
   const byText = (sel, text) => host.querySelectorAll(sel).find((n) => (n.text ?? '').includes(text));
-
-  /**
-   * The click handlers are ASYNC (they hash an audit entry before updating),
-   * so asserting immediately after `.click()` would read the DOM before the
-   * work happened. Every step therefore awaits its own handler, and clicks
-   * are followed by `settle()`.
-   */
-  const settle = async () => {
-    for (let i = 0; i < 8; i++) await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-    for (let i = 0; i < 8; i++) await Promise.resolve();
-  };
 
   const step = async (label, fn) => {
     try {
@@ -476,6 +484,14 @@ try {
     assert(host.text.includes('Effect on this year'), 'moving a slider produced no effect panel');
     assert(slider.value !== before, 'the slider did not change');
     return 'fuel index moved, ratios recomputed';
+  });
+
+    // Views that populate asynchronously reject silently by default, which is
+  // how an audit view that throws on its first hash still reports as an
+  // "empty but successful" render.
+  process.on('unhandledRejection', (err) => {
+    console.log(`  REJECTION from a view: ${err && err.message}`);
+    problems.push(`a view rejected asynchronously: ${err && err.message}`);
   });
 
   await step('every figure on the dashboard can explain itself', async () => {

@@ -35,10 +35,7 @@ export function dashboard(m) {
 
   const frag = document.createDocumentFragment();
 
-  frag.append(el('p', { class: 'lede' },
-    el('strong', {}, m.flights.length), ' flights for ', m.raw.length > 0 ? 'fiscal year 2026' : '',
-    ' — cost attributed per sector from primary records, fleet-fixed cost allocated by block hours, ',
-    'and the ratio set recomputed from summed numerators and denominators.'));
+  
 
   frag.append(kpis(
     kpi('Operating result', moneyShort(t.contributionCents),
@@ -186,13 +183,7 @@ export function costing(m) {
 
   const totalDirect = lineRows.reduce((a, r) => a + r.cents, 0);
 
-  frag.append(el('p', { class: 'lede' },
-    'The first two buckets determine whether a route is viable at all. ',
-    el('strong', {}, 'Flight-attributable'),
-    ' cost varies with flying the sector. ',
-    el('strong', {}, 'Fleet-fixed'),
-    ' cost — lease, insurance, admin crew, distribution — does not vary with whether this aircraft flies, and is allocated by an explicit driver. ',
-    'Pricing to marginal cost fills the plane and loses money; pricing to full cost loses the traffic. Both numbers must exist.'));
+  
 
   const f = m.flights[0];
   frag.append(kpis(
@@ -229,11 +220,6 @@ export function costing(m) {
   frag.append(card('Marginal versus full cost',
     'why both numbers must exist',
     el('div', {},
-      el('div', { class: 'explain' },
-        el('strong', {}, 'An extra passenger costs '), money(f.marginalCostOfExtraSeatCents),
-        '. The full average cost per seat is ', money(Math.floor(f.fullCostCents / f.seatsOffered)),
-        '. The gap is ', pct(Math.max(0, 100_000_000 - marginalSharePpm), 0),
-        ' — landing fees, handling and the lease do not move because one more person boarded.'),
       table([
         { key: 'measure', label: 'Measure' },
         { key: 'value', label: 'Per seat', num: true },
@@ -347,11 +333,7 @@ export function routing(m) {
     ));
 
     if (!result.feasible) {
-      output.append(el('div', { class: 'explain' },
-        el('strong', {}, 'No feasible route. '),
-        'The solver reports infeasibility rather than returning a route the aircraft cannot fly. ',
-        'This is the behaviour that distinguishes a fuel-constrained planner from an unconstrained one — ',
-        'the cheapest route by cost alone may be unflyable.'));
+      
       return;
     }
 
@@ -402,13 +384,6 @@ export function routing(m) {
               i > 0 ? el('span', { class: 'route-arrow' }, '→') : null,
               el('span', { class: 'route-node', style: 'background:#fdeeec;color:#b03a2e' }, s),
             ]).filter(Boolean)),
-          el('div', { class: 'explain' },
-            'Cost-first search would return ', el('strong', {}, naive.reduce((a, [s, c]) => a + c, 0) / 100 === 0 ? '' : ''),
-            naive.map(([, c]) => c).reduce((a, b) => a + b, 0) / 100,
-            ' less, burning ', kg(naiveFuel), ' against ', kg(state.tank - state.reserve), ' usable. ',
-            flyable
-              ? el('strong', {}, 'It happens to be flyable, so the constrained answer coincides here.')
-              : el('strong', {}, 'It is UNFLYABLE. Reporting this route would ground the aircraft.')),
           provenance('tests/routing.test.js', 'the "fuel constraint actually binds" suite'))));
     }
 
@@ -437,12 +412,7 @@ export function routing(m) {
         provenance('shared/src/routing/refuel.js', 'optimalRefuelPlan() — proven optimal by exchange argument'))));
   }
 
-  body.append(el('p', { class: 'lede' },
-    'Minimise cost subject to cumulative fuel never exceeding capacity minus reserve. ',
-    'A cost-first planner returns the cheapest route regardless of whether the aircraft can fly it; ',
-    'a greedy planner returns the cheapest *next hop* regardless of whether it strands the aircraft. ',
-    'This solver keeps only non-dominated (cost, fuel) pairs, which is provably safe because both the ',
-    'objective and the resource improve in the same direction.'));
+  
 
   body.append(el('div', { class: 'form-row' },
     el('div', { class: 'field' }, el('label', {}, 'Origin'), mkSelect('from', airports)),
@@ -456,10 +426,6 @@ export function routing(m) {
   frag.append(card('Fuel policy: the myopic rule',
     'optimalRefuelPlan()',
     el('div', {},
-      el('div', { class: 'explain' },
-        'At each stop, buy only enough to reach the ', el('strong', {}, 'next cheaper station'), ' with the reserve intact. ',
-        'Buying less forces the shortfall at a dearer station; buying more carries fuel that will be consumed somewhere cheaper. ',
-        'The destination price never influences a decision, because no fuel is sold on arrival.'),
       el('pre', { class: 'decision' },
         'proof by exchange\n',
         '  under-buying  → the shortfall must be bought later, where p_j >= p_i\n',
@@ -517,10 +483,7 @@ export function fuel(m) {
   const frag = document.createDocumentFragment();
   const fa = m.fuelAgg;
 
-  frag.append(el('p', { class: 'lede' },
-    'Fuel is typically a quarter to a third of an airline\'s operating cost, and the only major cost the ',
-    'airline does not control, cannot renegotiate, and consumes before it earns. ',
-    'Three things must be right: uplift is not burn, planned burn is not actual burn, and carrying fuel has an opportunity cost.'));
+  
 
   const fuelSharePpm = m.total.fullCostCents === 0
     ? 0 : Math.floor((fa.sectorCostCents / m.total.fullCostCents) * 1_000_000);
@@ -586,10 +549,6 @@ export function fuel(m) {
           el('div', { style: 'margin-top:10px' },
             el('strong', {}, 'Required uplift: '), kg(plan.requiredUpliftKg),
             ' · buffer ', pct(plan.bufferPpm))),
-        el('div', { class: 'explain', style: 'margin-top:12px' },
-          'Diversion only happens sometimes, so the benefit is the ', el('strong', {}, 'expected'),
-          ' cost avoided, scaled by probability. And carrying fuel is not free — it burns on every remaining sector. ',
-          'Comparing the gross diversion cost against the fuel price makes tankering look free, which is how airlines accumulate deadweight.'),
         provenance('shared/src/fuel.js', 'optimalUplift()')))));
 
   // Station prices.
@@ -625,11 +584,7 @@ export function airworthiness(m) {
 
   const worst = gateRows.reduce((a, r) => Math.max(a, r.g.overdueCount), 0);
 
-  frag.append(el('p', { class: 'lede' },
-    el('strong', {}, 'This is where an airline loses its certificate if it gets it wrong. '),
-    'A life-limited part wears out on three clocks at once — cycles, hours and calendar months — and a part with 50% of cycle life but 4% of calendar life is nearly scrap. ',
-    'An Airworthiness Directive is legally mandatory; a Service Bulletin is not, until an AD adopts it. ',
-    'AMS tracks them separately, because a fleet that "applied the SB" is not necessarily compliant with the AD.'));
+  
 
   frag.append(kpis(
     kpi('Dispatchable', worst === 0 ? pill('ALL', 'ok') : pill(`${gateRows.filter((r) => !r.g.dispatchable).length} BLOCKED`, 'bad'),
@@ -687,11 +642,6 @@ export function airworthiness(m) {
     'airworthinessGate() — an overdue AD cannot be deferred, whatever the operator records',
     el('div', {},
       gateTable,
-      el('div', { class: 'explain' },
-        el('strong', {}, 'EASA CS-GEN-MMEL: '),
-        '"The MEL cannot deviate from Airworthiness Directives or any other additional mandatory requirements." ',
-        'The gate sets the deferred flag to false unconditionally and reports any attempt separately — ',
-        'silently ignoring an illegal deferral would let an operator believe an aircraft is airworthy when it is not.'),
       provenance('shared/src/airworthiness.js', 'airworthinessGate()'))));
 
   // Directive register.
@@ -752,12 +702,6 @@ export function airworthiness(m) {
         { key: 'status', label: 'Status', render: (_v, row) =>
           pill(row.s.status, row.s.status === 'VALID' ? 'ok' : row.s.status === 'DUE_SOON' ? 'warn' : 'bad') },
       ], melRows),
-      el('div', { class: 'explain' },
-        'Category B is "3 calendar days excluding the day of discovery", running to the ',
-        el('strong', {}, 'end'), ' of the resulting day. A defect found at 09:00 Monday is due 23:59 Thursday — ',
-        'not Thursday 09:00. Naive duration arithmetic gets this wrong on every CAT B item, and getting it wrong ',
-        'in the lenient direction means dispatching an aircraft with an expired deferral. All arithmetic is UTC, ',
-        'so a clock change cannot shift a legal deadline.'),
       provenance('shared/src/airworthiness.js', 'rectifyDeadline()', 'melStatus()'))));
 
   return frag;
@@ -771,12 +715,7 @@ export function carbon(m) {
   const frag = document.createDocumentFragment();
   const c = m.carbon;
 
-  frag.append(el('p', { class: 'lede' },
-    'Carbon is no longer a reporting nicety — it is a balance-sheet item. ',
-    el('strong', {}, 'The critical rule is that emissions must be counted once. '),
-    'Where both regimes touch a flight, CORSIA-covered tonnes are deducted from the EU ETS chargeable quantity. ',
-    'Double-counting is a compliance error and, at current allowance prices, a seven-figure mistake. ',
-    'No upstream library does this correctly, which is why AMS implements the deduplication explicitly.'));
+  
 
   frag.append(kpis(
     kpi('Total CO₂', `${(c.totalTonnes / 1000).toFixed(1)}k t`,
@@ -804,10 +743,6 @@ export function carbon(m) {
         '\n  ets only      →  ', el('span', { class: 's' }, 'ETS = total,     CORSIA = 0'),
         '\n  neither       →  ', el('span', { class: 's' }, 'UNREGULATED = total'),
         '\n\n  invariant: the three buckets always sum to the whole'),
-      el('div', { class: 'explain', style: 'margin-top:12px' },
-        'The three allocation buckets must reconstruct the total for every input. That is a property of the ',
-        'deduplication, not of any particular flight — so it is checked as a property across all ',
-        int(m.emissions.length), ' flights rather than a handful of hand-computed examples.'),
       provenance('shared/src/carbon.js', 'allocateEmissions()'))));
 
   // Per-flight emissions detail.
@@ -964,10 +899,6 @@ export function audit(m) {
 
     out.append(card('Tamper detection', 'one field changed — the chain breaks immediately after',
       el('div', {},
-        el('div', { class: 'explain' },
-          'Entry 4 had ', el('strong', {}, 'contribution'), ' altered. Because every entry hashes its own content ',
-          'together with the previous entry\'s hash, the alteration makes entry 4\'s hash wrong — and verification ',
-          'fails at entry ', el('strong', {}, String(tBroken)), '.'),
         el('pre', { class: 'decision' },
           'original   entry 4 hash  ', chain[3].entryHash, '\n',
           'tampered   entry 4 hash  ', el('span', { class: 'n' }, await compute(tampered[3], tampered[3].prevHash)), '\n',
@@ -985,27 +916,23 @@ export function audit(m) {
           'canonicalise({ b: 2, a: 1 })  →  ', canonicalise({ b: 2, a: 1 }), '\n',
           'canonicalise({ a: 1, b: 2 })  →  ', canonicalise({ a: 1, b: 2 }),
           el('span', { class: 'k' }, '   ← identical, by design\n\n')),
-        el('div', { class: 'explain' },
-          'Without sorting, those two would hash differently and verification would report corruption on a chain ',
-          'that is perfectly intact. The failure mode is the worst kind: a phantom problem that would send engineers ',
-          'hunting for a bug that does not exist.'),
         provenance('backend/src/audit/chain.js', 'canonicalise()'))));
   }
 
-  body.append(el('p', { class: 'lede' },
-    'An airline audit trail is evidence presented to a statutory auditor, a lessor\'s technical representative, and a ',
-    'foreign civil aviation authority. If the airline can edit its own history, none of that evidence is worth anything. ',
-    'Each entry stores the SHA-256 of its own content concatenated with the previous entry\'s hash, so any modification, ',
-    'deletion or reordering breaks the chain at that point and every point after it.'));
+  
 
-  body.append(el('div', { class: 'explain' },
-    el('strong', {}, 'One deviation from the backend module: '),
-    'chain.js uses node:crypto, which a browser cannot import. This view uses the Web Crypto API instead — ',
-    'identical algorithm, but asynchronous. Every other module on this page is imported unchanged from shared/src/.'));
+  
 
   body.append(out);
   frag.append(card('Tamper-evident audit chain',
     'SHA-256 · per-tenant · append-only at the database by trigger', body));
+
+  // `run()` was never invoked here, so the audit tab rendered an empty card
+  // in the browser while passing every render check — "did not throw" was
+  // the only assertion, and an empty container does not throw. The view is
+  // async because Web Crypto is; it is kicked off here and fills in when the
+  // hashes are computed.
+  run();
 
   return frag;
 }
