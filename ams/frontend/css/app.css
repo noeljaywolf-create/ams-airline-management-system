@@ -918,3 +918,22 @@ pre.decision .n { color: #f0b37e; }
   .slider-row { grid-template-columns: 1fr; }
   .slider-out { text-align: left; }
 }
+
+/* ---- the accounts: P&L rows, trial balance, close notice ---- */
+.pl { display: flex; flex-direction: column; }
+.pl-row {
+  display: flex; align-items: baseline; gap: 12px; padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft); font-size: 13px;
+}
+.pl-label { flex: 1; }
+.pl-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.pl-revenue .pl-value { color: var(--ok); }
+.pl-expense .pl-value { color: var(--ink-2); }
+.pl-total {
+  border-bottom: 0; border-top: 2px solid var(--line); margin-top: 4px;
+  padding-top: 9px; font-weight: 700; font-size: 14.5px;
+}
+.pl-total .pl-value { font-weight: 800; }
+.pl-margin { font-size: 12px; color: var(--ink-2); min-width: 108px; text-align: right; }
+.notice-inline { margin-top: 7px; padding: 8px 10px; }
+.banner.bad { border-left-color: var(--bad); background: rgba(190, 40, 40, .07); }

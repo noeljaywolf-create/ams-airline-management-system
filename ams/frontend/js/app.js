@@ -14,6 +14,7 @@ import {
 import { ecosystem, problem } from './views-eco.js';
 import { executive, home } from './views-exec.js';
 import { portalView, scenarioView } from './views-portal.js';
+import { accountsView } from './views-finance.js';
 import { createStore } from './portal/store.js';
 
 /**
@@ -34,7 +35,8 @@ const VIEWS = {
   home,
   executive,
   portal: STORE_VIEWS.portal,
-  whatif: STORE_VIEWS.whatif,
+whatif: STORE_VIEWS.whatif,
+  accounts: accountsView,
   problem,
   ecosystem,
   dashboard,
@@ -55,8 +57,8 @@ const VIEWS = {
  * decision lands on the view an engineer would use, and sees the same value.
  */
 const AUDIENCE_VIEWS = {
-  executive: ['home', 'executive', 'portal', 'whatif', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon'],
-  technical: ['home', 'executive', 'portal', 'whatif', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit'],
+  executive: ['home', 'executive', 'portal', 'whatif', 'accounts', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon'],
+  technical: ['home', 'executive', 'portal', 'whatif', 'accounts', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit'],
 };
 
 let audience = 'executive';

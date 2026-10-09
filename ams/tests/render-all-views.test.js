@@ -69,7 +69,7 @@ describe('the built site renders every view', () => {
     // render lines from the scripted-journey lines, which also print "ok".
     const rendered = [...stdout.matchAll(/^\s+ok\s+(\w+)\s+.*root node\(s\)/gm)].map((m) => m[1]);
     expect(rendered).toEqual([
-      'home', 'executive', 'portal', 'whatif', 'problem', 'ecosystem',
+      'home', 'executive', 'portal', 'whatif', 'accounts', 'problem', 'ecosystem',
       'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit',
     ]);
   }, 120_000);
