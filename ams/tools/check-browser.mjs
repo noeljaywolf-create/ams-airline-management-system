@@ -640,6 +640,71 @@ try {
     return 'priced from tonnage, queued, and over-spend refused';
   });
 
+  await step('the arranged-data walkthrough runs every step', async () => {
+    select('dashboard');
+    const click = async (label) => {
+      const control = byText('button', label);
+      assert(control, `missing walkthrough control: ${label}`);
+      control.click();
+      await settle();
+      assert(!host.text.includes('View failed to render'), 'walkthrough caused a render error');
+      assert(!host.text.includes('Action failed:'), 'walkthrough action failed');
+    };
+    await click('Start guided walkthrough');
+    const actions = [
+      'Show the operating totals', 'Calculate the selected flight', 'Solve HRE to CPT',
+      'Compare selected flight with plan', 'Show blocked aircraft',
+      'Calculate selected flight CO₂', 'Raise the sample purchase',
+      'Build and check the trial balance', 'Verify walkthrough audit entries',
+    ];
+    for (let i = 0; i < actions.length; i += 1) {
+      await click(actions[i]);
+      if (i === 1) {
+        await click('Use this flight');
+        await click(actions[i]);
+        assert(host.text.includes('Selected flight: direct cost'), 'selected flight was not calculated');
+      }
+      if (i === 6) {
+        await click('Try CFO self-approval');
+        assert(host.text.includes('cannot also approve'), 'walkthrough self-approval was not refused');
+        await click('Approve as CEO');
+        assert(host.text.includes('CEO approval recorded'), 'walkthrough approval did not complete');
+      }
+      if (i < actions.length - 1) await click('Next step');
+    }
+    assert(host.text.includes('entries: hashes match'), 'walkthrough chain did not verify');
+    await click('Finish walkthrough');
+    assert(byText('button', 'Start guided walkthrough'), 'guide could not be restarted');
+    return 'nine actions, flight selection, self-approval refusal, CEO approval and audit verification';
+  });
+
+  await step('every table row, cell and column opens full information', async () => {
+    let checked = 0;
+    for (const name of appNs.__viewNames) {
+      select(name);
+      await settle();
+      for (const tableNode of host.querySelectorAll('table')) {
+        const targets = [...tableNode.querySelectorAll('th'), ...tableNode.querySelectorAll('td'), ...tableNode.querySelectorAll('tr').filter(r => r.querySelectorAll('td').length)];
+        for (const target of targets) {
+          assert(target._listeners?.click?.length, `${name}: table item has no click handler`);
+          assert(target._listeners?.keydown?.length, `${name}: table item has no keyboard handler`);
+        }
+        for (const target of [tableNode.querySelector('th'), tableNode.querySelector('td'), tableNode.querySelectorAll('tr').find(r => r.querySelectorAll('td').length)].filter(Boolean)) {
+          target.click();
+          assert(host.querySelector('.record-details'), `${name}: click did not open information`);
+          const close = byText('button', 'Close details');
+          assert(close, `${name}: details cannot close`);
+          close.click();
+          target.fire('keydown', {key:'Enter'});
+          assert(host.querySelector('.record-details'), `${name}: Enter did not open information`);
+          byText('button', 'Close details').click();
+          checked++;
+        }
+      }
+    }
+    assert(checked > 30, `too few inspected items: ${checked}`);
+    return `${checked} row, cell and column openings, with mouse and keyboard`;
+  });
   if (problems.length) {
     console.log('\nINTERACTION PROBLEMS:');
     for (const p of problems) console.log(`  ${p}`);

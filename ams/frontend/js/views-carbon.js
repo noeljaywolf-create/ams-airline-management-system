@@ -193,7 +193,7 @@ function budgetSummary(store) {
   if (!line) return el('div', { class: 'empty' }, 'No carbon budget line configured.');
   const avail = store.ledger.available(line);
   const usedPct = Math.round(((line.committedCents ?? 0) / line.allocatedCents) * 100);
-  return el('div', { class: 'budget-row' },
+  return el('div', { class: 'budget-row', detailData: line },
     el('div', { class: 'budget-head' },
       el('span', { class: 'budget-label' }, 'Carbon compliance budget'),
       el('span', { class: 'budget-avail' }, `${money(avail)} left`)),

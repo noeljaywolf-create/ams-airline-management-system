@@ -98,6 +98,7 @@ export function ecosystem() {
 
   // The capability table.
   const rows = caps.map((c) => ({
+    sourceRecord: c,
     name: c.name,
     status: c.status,
     capability: c.capability,
@@ -149,6 +150,7 @@ export function ecosystem() {
 
   // Live export inventory.
   const invRows = Object.entries(LIVE).map(([key, v]) => ({
+    sourceRecord: v,
     module: key,
     functions: v.functions.length,
     constants: v.constants.length,

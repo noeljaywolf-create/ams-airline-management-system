@@ -1,0 +1,11 @@
+{
+  "name": "huwa-table-charm-system",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node dev.mjs",
+    "setup": "npm install --prefix shared && npm install --prefix frontend && npm install --prefix backend",
+    "build": "npm run build --prefix shared && npm run build --prefix frontend && npm run build --prefix backend",
+    "test": "npm test --prefix backend -- --maxWorkers=1 --minWorkers=1"
+  }
+}

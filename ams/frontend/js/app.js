@@ -19,6 +19,7 @@ import { maintenanceView } from './views-maint.js';
 import { carbonOpsView } from './views-carbon.js';
 import { firstRunView, tourCompleted } from './tour.js';
 import { createStore } from './portal/store.js';
+import { walkthroughView } from './walkthrough.js';
 
 /**
  * The store is created once and handed to the two interactive views. It
@@ -118,6 +119,7 @@ function select(name) {
 
   clear(viewHost);
   try {
+    viewHost.append(walkthroughView(store, select, name));
     viewHost.append(VIEWS[name](model));
   } catch (err) {
     viewHost.append(el('div', { class: 'card' },

@@ -126,7 +126,7 @@ export function accountsView(model) {
   frag.append(card('Profit and loss',
     'operating result is shown before finance costs and tax, the way an airline P&L is read',
     el('div', { class: 'pl' },
-      ...plRows.map((r) => el('div', { class: 'pl-row pl-' + r.kind },
+      ...plRows.map((r) => el('div', { class: 'pl-row pl-' + r.kind, detailData: r },
         el('span', { class: 'pl-label' }, r.label),
         el('span', { class: 'pl-value' }, usd(r.cents)),
         r.kind === 'total'
@@ -163,7 +163,7 @@ export function accountsView(model) {
         el('div', { class: 'notice-head' }, v.code),
         el('div', { class: 'notice-body' }, v.message)));
     }
-    payableRows.push(el('div', { class: 'queue-row' }, main));
+    payableRows.push(el('div', { class: 'queue-row', detailData: inv }, main));
   }
 
   frag.append(card('Purchase to pay — three-way match',

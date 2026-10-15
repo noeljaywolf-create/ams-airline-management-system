@@ -93,6 +93,7 @@ export function el(tag, attrs = {}, ...children) {
   }
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'detailData') continue;
     if (v === null || v === undefined || v === false) continue;
     if (k === 'class') node.className = v;
     else if (k === 'html') node.innerHTML = v;
@@ -115,7 +116,72 @@ export function el(tag, attrs = {}, ...children) {
     if (c === null || c === undefined || c === false) continue;
     node.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
+  if (tag === 'div' && /(?:^|\s)(?:queue-row|budget-row|pl-row|register-row|portal-row|bar-row|gap-row|problem-row)(?:\s|$)/.test(attrs.class ?? '')) {
+    makeInspectableRow(node, attrs.detailData);
+  }
   return node;
+}
+
+/** Plain text serialization preserves nested source fields without executing HTML. */
+export function fullRecordText(value) {
+  const ancestors = [];
+  return JSON.stringify(value, function (key, item) {
+    if (typeof item === 'bigint') return item.toString();
+    if (item === undefined) return '(not supplied)';
+    if (typeof item !== 'object' || item === null) return item;
+    while (ancestors.length && ancestors.at(-1) !== this) ancestors.pop();
+    if (ancestors.includes(item)) return '(circular reference)';
+    ancestors.push(item);
+    if (item instanceof Map) return Object.fromEntries(item);
+    if (item instanceof Set) return [...item];
+    return item;
+  }, 2) ?? String(value);
+}
+
+function recordPanel(title, value, close) {
+  const heading = el('strong', {}, title);
+  const fields = el('dl', { style: 'max-height:60vh;overflow:auto;text-align:left;overflow-wrap:anywhere' });
+  const label = key => key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
+  const add = (item, path, key = '') => {
+    if (item !== null && typeof item === 'object' && Object.keys(item).length) {
+      for (const [name, child] of Object.entries(item)) add(child, [...path, Array.isArray(item) ? `Record ${Number(name) + 1}` : label(name)], name);
+      return;
+    }
+    let display = item === null ? 'Not supplied' : typeof item === 'object' ? 'No entries' : String(item);
+    if (typeof item === 'boolean') display = item ? 'Yes' : 'No';
+    if (typeof item === 'number' && /cents$/i.test(key) && Number.isSafeInteger(item)) display = `${money(item)} (${item.toLocaleString()} cents)`;
+    if (typeof item === 'number' && /ppm$/i.test(key)) display = `${pct(item, 3)} (${item.toLocaleString()} ppm)`;
+    fields.append(el('dt', { style: 'font-weight:600;margin-top:12px;text-transform:capitalize' }, path.join(' › ') || 'Value'), el('dd', { style: 'margin:4px 0 0;white-space:pre-wrap' }, display));
+  };
+  add(JSON.parse(fullRecordText(value)), []);
+  return el('section', { class: 'card record-details', 'aria-label': title, 'aria-live': 'polite', style: 'padding:16px;margin:12px 0;grid-column:1 / -1;flex-basis:100%;min-width:0' },
+    heading, el('button', { type: 'button', class: 'btn btn-sm', onclick: close }, 'Close details'), fields);
+}
+
+function interactiveTarget(event) {
+  return event.target?.closest?.('button,a,input,select,textarea,label,[data-goto],.record-details');
+}
+
+function makeInspectableRow(node, record) {
+  const snapshot = record ?? { displayedInformation: node.textContent ?? node.text ?? '', note: 'This display row has no additional source record attached.' };
+  let panel;
+  const close = () => { if (panel) node.removeChild(panel); panel = null; node.setAttribute('aria-expanded', 'false'); node.focus?.(); };
+  const open = event => {
+    if (interactiveTarget(event)) return;
+    if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault?.();
+    if (panel) { close(); return; }
+    panel = recordPanel('Full row information', snapshot, close);
+    node.append(panel);
+    node.setAttribute('aria-expanded', 'true');
+  };
+  node.setAttribute('tabindex', '0');
+  node.setAttribute('aria-label', 'Open full row information');
+  node.setAttribute('aria-expanded', 'false');
+  node.setAttribute('title', 'Click or press Enter for full information');
+  node.style.cursor = 'pointer';
+  node.addEventListener('click', open);
+  node.addEventListener('keydown', open);
 }
 
 export const clear = (node) => { while (node.firstChild) node.removeChild(node.firstChild); };
@@ -199,19 +265,46 @@ export function kpis(...tiles) {
  * Passing `render` lets a cell return a Node instead of text.
  */
 export function table(cols, rows, { scroll = true } = {}) {
+  const details = el('div', { class: 'table-record-details' });
+  let opener;
+  const show = (title, value, target) => {
+    opener = target;
+    details.replaceChildren(recordPanel(title, value, () => { details.replaceChildren(); opener?.focus?.(); }));
+  };
+  const activate = action => event => {
+    if (interactiveTarget(event)) return;
+    if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    action(event.currentTarget);
+  };
+  const attrs = { tabindex: '0', style: 'cursor:pointer', title: 'Click or press Enter for full information' };
   const thead = el('thead', {}, el('tr', {},
-    cols.map((c) => el('th', { class: c.num ? 'num' : (c.cls ?? '') }, c.label))));
+    cols.map((c) => {
+      const open = activate(target => show(`${c.label}: full column information`, {
+        column: c.label, field: typeof c.key === 'string' ? c.key : 'computed field', recordCount: rows.length,
+        records: rows.map((row, index) => ({ row: index + 1, value: typeof c.key === 'function' ? c.key(row) : row[c.key], fullRecord: row })),
+      }, target));
+      return el('th', { ...attrs, scope: 'col', class: c.num ? 'num' : (c.cls ?? ''), onclick: open, onkeydown: open }, c.label);
+    })));
 
-  const tbody = el('tbody', {}, rows.map((row) => el('tr', {},
+  const tbody = el('tbody', {}, rows.map((row, index) => {
+    const openRow = activate(target => show(`Row ${index + 1}: full information`, row, target));
+    return el('tr', { ...attrs, 'aria-label': `Open full information for row ${index + 1}`, onclick: openRow, onkeydown: openRow },
     cols.map((c) => {
       const raw = typeof c.key === 'function' ? c.key(row) : row[c.key];
       const rendered = c.render ? c.render(raw, row) : raw;
       const node = rendered instanceof Node ? rendered : String(rendered ?? '');
-      return el('td', { class: [c.num ? 'num' : '', c.cls ?? ''].filter(Boolean).join(' ') }, node);
-    }))));
+      const open = activate(target => show(`Row ${index + 1} · ${c.label}`, {
+        column: c.label, value: raw, fullRecord: row,
+      }, target));
+      return el('td', { ...attrs, class: [c.num ? 'num' : '', c.cls ?? ''].filter(Boolean).join(' '), onclick: open, onkeydown: open }, node);
+    }));
+  }));
 
-  return el(scroll ? 'div' : 'div', { class: scroll ? 'table-scroll' : '' },
-    el('table', {}, thead, tbody));
+  return el('div', {},
+    el('div', { class: 'table-hint' }, 'Click any row, cell or column heading for full information.'),
+    el('div', { class: scroll ? 'table-scroll' : '' }, el('table', {}, thead, tbody)), details);
 }
 
 /** Pill with a tone. tone: 'ok' | 'warn' | 'bad' | 'neutral' | 'info' */

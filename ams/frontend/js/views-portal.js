@@ -88,7 +88,7 @@ function personaPicker(store, current) {
         ? el('div', { class: 'register' },
           el('div', { class: 'register-head' },
             'Accountable-manager register — a live AOC question, not a formality'),
-          ...reg.map((r) => el('div', { class: 'register-row' + (r.finding ? ' gap' : '') },
+          ...reg.map((r) => el('div', { class: 'register-row' + (r.finding ? ' gap' : ''), detailData: r },
             el('span', { class: 'mono' }, r.post.replace(/_/g, ' ')),
             r.holder
               ? el('span', {}, `${r.holder.name}, ${r.holder.title}`)
@@ -178,7 +178,7 @@ function costAuthority(store, me) {
     approve.addEventListener('click', () => decide(store, me, c.id, 'APPROVED'));
     reject.addEventListener('click', () => decide(store, me, c.id, 'REJECTED'));
 
-    rows.push(el('div', { class: 'queue-row' },
+    rows.push(el('div', { class: 'queue-row', detailData: c },
       el('div', { class: 'queue-main' },
         el('div', { class: 'queue-ref' },
           el('span', { class: 'mono' }, c.reference),
@@ -189,7 +189,7 @@ function costAuthority(store, me) {
       el('div', { class: 'queue-actions' }, approve, reject)));
   }
 
-  const decidedRows = decided.map((c) => el('div', { class: 'queue-row decided' },
+  const decidedRows = decided.map((c) => el('div', { class: 'queue-row decided', detailData: c },
     el('div', { class: 'queue-main' },
       el('div', { class: 'queue-ref' },
         el('span', { class: 'mono' }, c.reference),
@@ -254,7 +254,7 @@ function budgetLines(store) {
   for (const l of ledger.state.lines) {
     const avail = ledger.available(l);
     const usedPct = Math.round(((l.committedCents ?? 0) / l.allocatedCents) * 100);
-    body.append(el('div', { class: 'budget-row' },
+    body.append(el('div', { class: 'budget-row', detailData: l },
       el('div', { class: 'budget-head' },
         el('span', { class: 'budget-label' }, l.label),
         el('span', { class: 'mono faint' }, l.account),
@@ -317,10 +317,11 @@ function auditTrail(store) {
     { key: 'actor', label: 'Actor' },
     { key: 'hash', label: 'Hash' },
   ], entries.slice().reverse().map((e) => ({
+    ...e,
     id: e.id,
     action: e.action.replace(/_/g, ' ').toLowerCase(),
     actor: nameOf(e.actorId),
-    hash: e.entryHash.slice(0, 10),
+    hash: e.entryHash,
   }))));
 
   if (!entries.length) {
@@ -344,7 +345,7 @@ function portalRegister() {
   const body = el('div', {});
   for (const p of PORTALS) {
     const done = p.screens.filter((s) => s.implemented).length;
-    body.append(el('div', { class: 'portal-row' },
+    body.append(el('div', { class: 'portal-row', detailData: p },
       el('div', { class: 'portal-name' },
         p.name,
         pill(`${done}/${p.screens.length}`, done === p.screens.length ? 'ok' : 'warn')),
