@@ -15,6 +15,7 @@ import { ecosystem, problem } from './views-eco.js';
 import { executive, home } from './views-exec.js';
 import { portalView, scenarioView } from './views-portal.js';
 import { accountsView } from './views-finance.js';
+import { maintenanceView } from './views-maint.js';
 import { firstRunView, tourCompleted } from './tour.js';
 import { createStore } from './portal/store.js';
 
@@ -42,6 +43,7 @@ const VIEWS = {
   portal: STORE_VIEWS.portal,
 whatif: STORE_VIEWS.whatif,
   accounts: accountsView,
+  maintenance: () => maintenanceView(() => select(current)),
   problem,
   ecosystem,
   dashboard,
@@ -62,8 +64,8 @@ whatif: STORE_VIEWS.whatif,
  * decision lands on the view an engineer would use, and sees the same value.
  */
 const AUDIENCE_VIEWS = {
-  executive: ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon'],
-  technical: ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit'],
+  executive: ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'maintenance', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon'],
+  technical: ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'maintenance', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel', 'airworthiness', 'carbon', 'audit'],
 };
 
 let audience = 'executive';

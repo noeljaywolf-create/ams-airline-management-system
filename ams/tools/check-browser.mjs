@@ -531,8 +531,8 @@ try {
     // that would have caught Audit Trail being unreachable.
     const html = readFileSync(resolve(ROOT, 'index.html'), 'utf8');
     const buttons = [...html.matchAll(/class="tab"\s+data-view="(\w+)"/g)].map((m) => m[1]);
-    assert(buttons.length >= 15, `only ${buttons.length} tab buttons in index.html: ${buttons.join(', ')}`);
-    for (const required of ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'audit']) {
+    assert(buttons.length >= 16, `only ${buttons.length} tab buttons in index.html: ${buttons.join(', ')}`);
+    for (const required of ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'maintenance', 'audit']) {
       assert(buttons.includes(required), `no tab button for "${required}"`);
     }
     return `${buttons.length} tab buttons declared`;
@@ -566,6 +566,44 @@ try {
     await settle();
     assert(host.text.includes('Approved by the CEO'), 'the hand-off to the CEO did not complete the approval');
     return 'refusal demonstrated, then handed off';
+  });
+
+  await step('maintenance refuses to defer an overdue AD, and says why', async () => {
+    select('maintenance');
+    await settle();
+    assert(host.text.includes('Dispatch gate'), 'maintenance view did not render a gate');
+
+    // The whole point of the screen: a real button, a real refusal, a real
+    // citation. If this ever stops refusing, the safety control is gone.
+    const defer = byText('button', 'Record a MEL deferral');
+    assert(defer, 'no MEL deferral control on the maintenance screen');
+    defer.click();
+    await settle();
+
+    assert(host.text.includes('AD_CANNOT_BE_DEFERRED'),
+      'an overdue Airworthiness Directive was NOT refused');
+    assert(host.text.includes('CS-GEN-MMEL'),
+      'the refusal does not cite the regulation it is enforcing');
+    assert(/append-only|Recorded in the maintenance log/i.test(host.text),
+      'the refusal was not recorded as evidence');
+    assert(/deferral refused|refused ad/i.test(host.text),
+      'the refusal is missing from the maintenance log');
+    return 'AD refused, cited, and logged';
+  });
+
+  await step('scheduling is not the same as doing the work', async () => {
+    select('maintenance');
+    await settle();
+    const sched = byText('button', 'Schedule the rectification');
+    assert(sched, 'no schedule control');
+    sched.click();
+    await settle();
+    assert(host.text.includes('SCHEDULED'), 'the task was not scheduled');
+    // A hangar slot must not clear the gate. If it did, an operator could
+    // book a slot and dispatch an aircraft with the AD still open.
+    assert(host.text.includes('The dispatch gate has NOT moved'),
+      'scheduling appears to have restored the dispatch gate');
+    return 'scheduled, gate correctly unmoved';
   });
 
   if (problems.length) {
