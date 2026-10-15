@@ -92,6 +92,14 @@ const SEED_LINES = [
     id: 'bl-disp', label: 'Dispatch & nav aids', account: '5500 Navigation & dispatch',
     allocatedCents: 900_000_00, committedCents: 742_000_00,
   },
+  // Compliance procurement. Allocated too small on purpose: a CORSIA
+  // obligation for this fleet costs materially more than the line holds, so
+  // the screen can show the system refusing an unaffordable commitment rather
+  // than only ever approving things.
+  {
+    id: 'bl-carbon', label: 'Carbon compliance', account: '5410 SAF & allowances',
+    allocatedCents: 9_000_000_00, committedCents: 6_240_000_00,
+  },
 ];
 
 export function createLedger() {

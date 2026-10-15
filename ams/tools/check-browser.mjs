@@ -531,8 +531,8 @@ try {
     // that would have caught Audit Trail being unreachable.
     const html = readFileSync(resolve(ROOT, 'index.html'), 'utf8');
     const buttons = [...html.matchAll(/class="tab"\s+data-view="(\w+)"/g)].map((m) => m[1]);
-    assert(buttons.length >= 16, `only ${buttons.length} tab buttons in index.html: ${buttons.join(', ')}`);
-    for (const required of ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'maintenance', 'audit']) {
+    assert(buttons.length >= 17, `only ${buttons.length} tab buttons in index.html: ${buttons.join(', ')}`);
+    for (const required of ['firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'maintenance', 'carbonops', 'audit']) {
       assert(buttons.includes(required), `no tab button for "${required}"`);
     }
     return `${buttons.length} tab buttons declared`;
@@ -604,6 +604,40 @@ try {
     assert(host.text.includes('The dispatch gate has NOT moved'),
       'scheduling appears to have restored the dispatch gate');
     return 'scheduled, gate correctly unmoved';
+  });
+
+  await step('carbon compliance buys units through the cost authority', async () => {
+    select('carbonops');
+    await settle();
+    assert(host.text.includes('CORSIA obligation'), `carbon compliance view did not render; saw: ${host.text.slice(0,300)}`);
+    // The comparison must never be able to select non-compliance.
+    assert(host.text.includes('CHEAPEST COMPLIANT'), 'no cheapest-compliant option is marked');
+    assert(host.text.includes('NOT COMPLIANT'), 'the penalty option is not marked non-compliant');
+
+    // Price is COMPUTED from tonnage, so a bigger quantity must ask for more
+    // money. If the amount were typed in, this is where it would drift.
+    const before = (host.text.match(/is awaiting approval/) ?? []).length;
+    const raise = byText('button', 'Raise');
+    assert(raise, 'no procurement control on the carbon screen');
+    raise.click();
+    await settle();
+    assert(/awaiting approval|Replayed/.test(host.text),
+      `raising a CORSIA commitment did not reach the cost authority queue; saw: ${host.text.slice(0, 400)}`);
+    void before;
+
+    // Now prove the budget ceiling binds: ask for more than the line holds.
+    const tonnes = host.walk('input').find((n) => n._attrs?.type === 'number');
+    assert(tonnes, 'no tonnage input');
+    tonnes.value = '900000';
+    tonnes.fire('input');
+    select('carbonops');
+    await settle();
+    const raiseAgain = byText('button', 'Raise');
+    raiseAgain.click();
+    await settle();
+    assert(/INSUFFICIENT|budget|exceeds|left/i.test(host.text),
+      'an unaffordable carbon commitment was not refused by the budget ceiling');
+    return 'priced from tonnage, queued, and over-spend refused';
   });
 
   if (problems.length) {

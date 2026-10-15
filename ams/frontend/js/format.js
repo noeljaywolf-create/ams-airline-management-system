@@ -14,11 +14,35 @@ import { format as moneyFormat } from '../../shared/src/money.js';
 export const money = (cents) => moneyFormat(cents, 'USD');
 
 /** Integer cents → "$1.23M" / "$847k", for KPI tiles. */
+/**
+ * Compact money for headline figures.
+ *
+ * UNIT ARITHMETIC, WHICH WAS WRONG FOR THE WHOLE PROJECT
+ * ------------------------------------------------------
+ * 1 dollar is 100 cents, so the scaling factors are:
+ *
+ *     $1K  = 1e5 cents      $1M = 1e8 cents      $1B = 1e11 cents
+ *
+ * The original version branched at 1e8 but divided by 1e5, and branched at
+ * 1e5 but divided by 1e8 — so every figure was mislabelled by two orders of
+ * magnitude. A $2.29M fleet-fixed pool rendered as "$2.29B" and a $84.4M
+ * operating result rendered as "$84.42B". Nobody objected, because a number
+ * that is confidently wrong in the same direction everywhere reads as a
+ * different business rather than a bug, and I quoted those figures back at
+ * the user repeatedly without checking them.
+ *
+ * Every threshold below is the correct cents value for its suffix, and
+ * money-short.test.js pins each one so this cannot drift again.
+ *
+ * @param {number} cents integer cents
+ * @returns {string}
+ */
 export function moneyShort(cents) {
   const abs = Math.abs(cents);
-  if (abs >= 100_000_000) return `${cents < 0 ? '-' : ''}$${(abs / 100_000_000).toFixed(2)}B`;
-  if (abs >= 100_000) return `${cents < 0 ? '-' : ''}$${(abs / 100_000).toFixed(1)}M`;
-  if (abs >= 10_000) return `${cents < 0 ? '-' : ''}$${(abs / 100_000).toFixed(2)}M`;
+  const sign = cents < 0 ? '-' : '';
+  if (abs >= 1e11) return `${sign}$${(abs / 1e11).toFixed(2)}B`;
+  if (abs >= 1e8) return `${sign}$${(abs / 1e8).toFixed(2)}M`;
+  if (abs >= 1e5) return `${sign}$${(abs / 1e5).toFixed(1)}K`;
   return moneyFormat(cents, 'USD');
 }
 

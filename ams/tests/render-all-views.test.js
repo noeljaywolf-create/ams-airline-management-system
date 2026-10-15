@@ -70,7 +70,7 @@ describe('the built site renders every view', () => {
     const rendered = [...stdout.matchAll(/^\s+ok\s+(\w+)\s+.*root node\(s\)/gm)].map((m) => m[1]);
     expect(rendered).toEqual([
       'firstrun', 'home', 'executive', 'portal', 'whatif', 'accounts', 'maintenance',
-      'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel',
+      'carbonops', 'problem', 'ecosystem', 'dashboard', 'costing', 'routing', 'fuel',
       'airworthiness', 'carbon', 'audit',
     ]);
   }, 120_000);
