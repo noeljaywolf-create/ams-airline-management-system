@@ -1,2 +1,0 @@
-import db from '../config/database';import {badRequest} from '../middleware/errors';import {parseJson} from './catalog.mapper';
-export async function assertPurchasable(productId:string):Promise<void>{const product=await db('products').where({id:productId}).first();if(!product?.published)throw badRequest('This product is unavailable');if(parseJson<any>(product.features,{}).requires_quote)throw badRequest('Request a confirmed local price before ordering this product');}
